@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Sistema de Entregas - Relatório + WhatsApp</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .status-bar {
+            background: #f8f9fa;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+            font-size: 13px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .status-online { color: #27ae60; font-weight: bold; }
+        .status-offline { color: #e74c3c; font-weight: bold; }
+        .status-local { color: #f39c12; font-weight: bold; }
+        button { cursor: pointer; padding: 8px 15px; border-radius: 8px; border: none; font-weight: bold; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
+        .registro-area, .nomes-area, .content { padding: 20px; }
+        .registro-box { background: #f8f9fa; padding: 20px; border-radius: 15px; }
+        .row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+        .input-group { flex: 1; min-width: 150px; }
+        .input-group label { display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px; }
+        .input-group input, .input-group select { width: 100%; padding: 12px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; background: white; }
+        .payment-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+        .payment-btn { flex: 1; padding: 12px; border: 2px solid #ddd; background: white; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .payment-btn.selected { background: #667eea; color: white; border-color: #667eea; }
+        .payment-btn.dinheiro.selected { background: #27ae60; }
+        .payment-btn.pix.selected { background: #3498db; }
+        .payment-btn.cartao.selected { background: #e74c3c; }
+        .btn-registrar, .btn-cancelar { width: 100%; padding: 12px; margin-bottom: 10px; }
+        .btn-registrar { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+        .btn-cancelar { background: #e74c3c; color: white; }
+        .contagem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; max-height: 600px; overflow-y: auto; margin-top: 10px; }
+        .card-moto { border: 2px solid #e0e0e0; border-radius: 12px; padding: 15px; cursor: pointer; background: white; }
+        .card-moto.normal { background: linear-gradient(135deg, #667eea10, #764ba210); }
+        .card-moto.repetido { background: #ffd93d60; border-color: #ffd93d; }
+        .card-moto.cancelado { background: #e74c3c40; border-color: #e74c3c; }
+        .card-moto:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .moto-header { text-align: center; border-bottom: 2px solid #ddd; margin-bottom: 10px; padding-bottom: 8px; }
+        .moto-nome { font-size: 18px; font-weight: bold; cursor: pointer; display: inline-block; padding: 4px 12px; border-radius: 8px; background: rgba(102,126,234,0.1); }
+        .moto-qtd { font-size: 28px; font-weight: bold; color: #764ba2; margin: 5px 0; }
+        .detalhe-item { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px dashed #ddd; }
+        .total-item { margin-top: 10px; padding-top: 8px; border-top: 2px solid #667eea; display: flex; justify-content: space-between; font-weight: bold; }
+        .total-box { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
+        .total-valor { font-size: 48px; font-weight: bold; }
+        .resumo-pagamento, .card-lista { background: #f8f9fa; padding: 15px; border-radius: 15px; margin-bottom: 20px; }
+        .pedido-item { background: white; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #667eea; }
+        .pedido-item.cancelado { border-left-color: #e74c3c; background: #fef0f0; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 15px; max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .close-modal { float: right; font-size: 28px; cursor: pointer; }
+        .relatorio-linha { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .relatorio-total { font-weight: bold; font-size: 1.2em; border-top: 2px solid #333; margin-top: 10px; padding-top: 10px; }
+        .caixa-area { background: #f0f2f5; padding: 20px; border-radius: 15px; margin-top: 20px; margin-bottom: 20px; }
+        .inline-group { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 15px; }
+        .retirada-item { background: white; padding: 10px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-remover { background: #e74c3c; color: white; padding: 4px 10px; font-size: 12px; }
+        .btn-add { background: #27ae60; color: white; margin-top: 5px; width: auto; padding: 8px 20px; }
+        .btn-relatorio { background: #f39c12; color: white; width: 100%; margin-top: 15px; }
+        .btn-whatsapp { background: #25D366; color: white; width: 100%; margin-top: 10px; }
+        .btn-novo-expediente { background: #3498db; color: white; margin-top: 10px; width: 100%; }
+        .btn-verificar { background: #9b59b6; color: white; margin-top: 10px; width: 100%; }
+        .diferenca-alerta { background: #e74c3c; color: white; padding: 10px; border-radius: 8px; margin-top: 10px; text-align: center; }
+        @media (max-width: 768px) { .contagem-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🚀 Sistema de Entregas + Caixa</h1>
+        <p>🟡 Amarelo = pedido repetido | 🔴 Vermelho = cancelado</p>
+    </div>
+    <div class="status-bar">
+        <span>💾 Status: <span id="statusText">Conectando...</span></span>
+        <div><button id="btnSync" style="background:#3498db;">🔄 Sincronizar</button>
+        <button id="btnLimpar" style="background:#e74c3c;">🗑️ Limpar tudo</button></div>
+    </div>
+
+    <div class="registro-area">
+        <div class="registro-box">
+            <div class="row">
+                <div class="input-group"><label>📦 Nº Pedido (1-9 dígitos)</label><input type="text" id="pedidoInput" placeholder="Ex: 123, 1234"></div>
+                <div class="input-group"><label>🏍️ Motoqueiro (1-15)</label><input type="number" id="motoInput" min="1" max="15" placeholder="1 a 15"></div>
+                <div class="input-group"><label>💰 Valor (R$) - <span id="valorOpcional">opcional</span></label><input type="text" id="valorInput" placeholder="Ex: 45,90 ou 45.90"></div>
+            </div>
+            <div class="payment-buttons">
+                <button class="payment-btn dinheiro" data-payment="dinheiro" disabled>💵 DINHEIRO</button>
+                <button class="payment-btn pix" data-payment="pix" disabled>📱 PIX</button>
+                <button class="payment-btn cartao" data-payment="cartao" disabled>💳 CARTÃO</button>
+            </div>
+            <button class="btn-registrar" id="registrarBtn">✅ REGISTRAR ENTREGA (Enter) 🔊</button>
+            <button class="btn-cancelar" id="cancelarPedidoBtn">❌ CANCELAR PEDIDO (direto)</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="contagem-area">
+            <h3>📊 Entregas por Motoqueiro (clique para detalhes)</h3>
+            <div id="contagemGrid" class="contagem-grid"></div>
+        </div>
+        <div>
+            <div class="total-box">
+                <div class="total-valor" id="totalPedidos">0</div>
+                <div class="total-money" id="totalMoney">R$ 0,00</div>
+            </div>
+            <div class="resumo-pagamento"><h4>💰 Resumo por Pagamento</h4><div id="resumoPagamento"></div></div>
+            <div class="card-lista"><h4>🕒 Últimos pedidos ativos</h4><div id="ultimosPedidos"></div></div>
+            <div class="card-lista"><h4>❌ Pedidos Cancelados</h4><div id="canceladosList"></div></div>
+        </div>
+    </div>
+
+    <!-- Área de caixa e retiradas -->
+    <div class="caixa-area">
+        <h3>💰 Controle de Caixa</h3>
+        <div class="inline-group">
+            <div class="input-group"><label>Valor inicial do caixa (R$)</label><input type="text" id="valorInicialCaixa" placeholder="Ex: 200,00"></div>
+            <button id="btnSalvarInicial" style="background:#3498db;">Salvar</button>
+        </div>
+        <div class="inline-group">
+            <div class="input-group"><label>📊 Quantos motoqueiros estão rodando hoje?</label>
+                <input type="number" id="qtdeMotoqueiros" min="1" max="15" value="15" style="width:100px;">
+                <button id="btnAtualizarMotoqueiros" style="background:#27ae60;">Atualizar Cards</button>
+            </div>
+        </div>
+        <h4>📤 Retiradas (valores retirados do caixa)</h4>
+        <div id="retiradasList"></div>
+        <div class="inline-group" style="margin-top:5px;">
+            <div class="input-group"><label>Valor da retirada (R$)</label><input type="text" id="novaRetiradaValor" placeholder="Ex: 50,00"></div>
+            <div class="input-group"><label>Descrição (inclua nome do motoqueiro se aplicável)</label><input type="text" id="novaRetiradaDesc" placeholder="Ex: Lucas - gasolina"></div>
+            <button id="btnAddRetirada" class="btn-add">+ Adicionar Retirada</button>
+        </div>
+        
+        <h4 style="margin-top:15px;">🔍 Conferência de Caixa</h4>
+        <div class="inline-group">
+            <div class="input-group"><label>Valor final REAL do caixa (R$)</label><input type="text" id="valorFinalReal" placeholder="Quanto realmente tem no caixa?"></div>
+            <button id="btnVerificarCaixa" class="btn-verificar">Verificar Divergência</button>
+        </div>
+        <div id="alertaDivergencia" style="display:none;" class="diferenca-alerta"></div>
+        
+        <button id="btnRelatorio" class="btn-relatorio">📊 Gerar Relatório de Expediente</button>
+        <button id="btnWhatsApp" class="btn-whatsapp">📱 Enviar Relatório para WhatsApp</button>
+        <button id="btnNovoExpediente" class="btn-novo-expediente">🔄 Novo Expediente (zerar caixa e retiradas)</button>
+    </div>
+</div>
+
+<!-- Modais -->
+<div id="relatorioModal" class="modal"><div class="modal-content"><span class="close-modal" onclick="fecharModal('relatorioModal')">&times;</span><h3>📋 Relatório de Expediente</h3><div id="relatorioConteudo"></div><button onclick="fecharModal('relatorioModal')">Fechar</button></div></div>
+<div id="cancelModal" class="modal"><div class="modal-content"><span class="close-modal" onclick="fecharModal('cancelModal')">&times;</span><h3>❌ Cancelar Pedido</h3><div class="input-group"><label>Número</label><input type="text" id="cancelNumero"></div><div class="input-group"><label>Motivo</label><select id="cancelMotivo"><option>Cliente cancelou</option><option>Restaurante cancelou</option><option>Motoqueiro não conseguiu</option><option>Outro</option></select></div><div class="input-group"><label>Motoqueiro (opcional)</label><input type="number" id="cancelMotoqueiro" min="1" max="15"></div><div style="display:flex; gap:10px; margin-top:20px;"><button id="confirmCancel" style="background:#e74c3c;">Confirmar</button><button onclick="fecharModal('cancelModal')">Fechar</button></div></div></div>
+<div id="relatorioPedidoModal" class="modal"><div class="modal-content" style="max-width:700px;"><span class="close-modal" onclick="fecharModal('relatorioPedidoModal')">&times;</span><h3 id="modalTitulo">Relatório do Motoqueiro</h3><div id="relatorioPedidoConteudo"></div><button onclick="fecharModal('relatorioPedidoModal')">Fechar</button></div></div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script>
+    // Firebase Config
+    const firebaseConfig = {
+        apiKey: "AIzaSyBLmlqiRUlatPCpqYDSY62Bj993KwVp_-E",
+        authDomain: "newagent-222f6.firebaseapp.com",
+        databaseURL: "https://newagent-222f6.firebaseio.com",
+        projectId: "newagent-222f6",
+        storageBucket: "newagent-222f6.firebasestorage.app",
+        messagingSenderId: "45753782568",
+        appId: "1:45753782568:web:93bef3c4caee3686ae001d"
+    };
+    let db, firebaseConnected = false;
+    try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+        firebaseConnected = true;
+        document.getElementById('statusText').innerHTML = '✅ Firebase conectado';
+        document.getElementById('statusText').className = 'status-online';
+    } catch(e) { 
+        console.warn(e);
+        firebaseConnected = false;
+        document.getElementById('statusText').innerHTML = '⚠️ Modo local';
+        document.getElementById('statusText').className = 'status-local';
+    }
+
+    // Estado
+    let contagem = Array(15).fill(0);
+    let valoresPorTipo = Array(15).fill().map(() => ({ dinheiro:0, pix:0, cartao:0, online:0 }));
+    let nomesMotoqueiros = Array(15).fill().map((_,i)=>`Moto ${i+1}`);
+    let todosPedidos = [];
+    let pagamentoSelecionado = null;
+    let valorInicialCaixa = 0;
+    let retiradas = [];
+    let qtdeMotoqueirosAtivos = 15;
+    const STORAGE_KEY = 'delivery_completo_caixa_v5';
+    
+    function parseValor(str) {
+        if (!str) return 0;
+        let s = str.toString().trim().replace(/\./g, ','); // ponto -> vírgula
+        s = s.replace(',', '.'); // última vírgula vira ponto
+        let v = parseFloat(s);
+        return isNaN(v) ? 0 : v;
+    }
+    
+    function formatarMoeda(v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+    
+    function salvarLocal() {
+        const backup = { contagem, valoresPorTipo, nomesMotoqueiros, todosPedidos, valorInicialCaixa, retiradas, qtdeMotoqueirosAtivos };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(backup));
+    }
+    
+    function carregarLocal() {
+        const dados = localStorage.getItem(STORAGE_KEY);
+        if(dados) {
+            try {
+                const obj = JSON.parse(dados);
+                contagem = obj.contagem || Array(15).fill(0);
+                valoresPorTipo = obj.valoresPorTipo || Array(15).fill().map(()=>({dinheiro:0,pix:0,cartao:0,online:0}));
+                nomesMotoqueiros = obj.nomesMotoqueiros || Array(15).fill().map((_,i)=>`Moto ${i+1}`);
+                todosPedidos = obj.todosPedidos || [];
+                valorInicialCaixa = obj.valorInicialCaixa || 0;
+                retiradas = obj.retiradas || [];
+                qtdeMotoqueirosAtivos = obj.qtdeMotoqueirosAtivos || 15;
+                return true;
+            } catch(e) {}
+        }
+        return false;
+    }
+    
+    function salvarFirebase() {
+        if(!firebaseConnected) return;
+        db.ref('deliveryData').set({ contagem, valoresPorTipo, nomesMotoqueiros, todosPedidos, valorInicialCaixa, retiradas, qtdeMotoqueirosAtivos, ultimaAtualizacao: Date.now() }).catch(e=>console.warn);
+    }
+    
+    function carregarFirebase() {
+        if(!firebaseConnected) { carregarLocal(); atualizarInterfaceCompleta(); return; }
+        db.ref('deliveryData').once('value').then(snap => {
+            if(snap.exists()) {
+                const data = snap.val();
+                contagem = data.contagem || Array(15).fill(0);
+                valoresPorTipo = data.valoresPorTipo || Array(15).fill().map(()=>({dinheiro:0,pix:0,cartao:0,online:0}));
+                nomesMotoqueiros = data.nomesMotoqueiros || Array(15).fill().map((_,i)=>`Moto ${i+1}`);
+                todosPedidos = data.todosPedidos || [];
+                valorInicialCaixa = data.valorInicialCaixa || 0;
+                retiradas = data.retiradas || [];
+                qtdeMotoqueirosAtivos = data.qtdeMotoqueirosAtivos || 15;
+                document.getElementById('statusText').innerHTML = '✅ Firebase sincronizado';
+                document.getElementById('statusText').className = 'status-online';
+                salvarLocal();
+            } else {
+                if(!carregarLocal()) console.log("Nenhum dado");
+                else salvarFirebase();
+            }
+            atualizarInterfaceCompleta();
+        }).catch(err=>{ carregarLocal(); atualizarInterfaceCompleta(); });
+    }
+    
+    function obterPedidosDuplicados() {
+        const ativos = todosPedidos.filter(p => !p.cancelado);
+        const count = {};
+        ativos.forEach(p=> count[p.pedido] = (count[p.pedido]||0)+1);
+        const dup = new Set();
+        for(let [ped,qtd] of Object.entries(count)) if(qtd>1) dup.add(ped);
+        return dup;
+    }
+    
+    function obterMotoqueirosPorPedido(pedidoNum) {
+        const motos = new Set();
+        todosPedidos.filter(p => p.pedido === pedidoNum && !p.cancelado).forEach(p => motos.add(p.motoqueiro));
+        return Array.from(motos);
+    }
+    
+    function obterPedidosCanceladosSet() {
+        const set = new Set();
+        todosPedidos.filter(p=>p.cancelado).forEach(p=>set.add(p.pedido));
+        return set;
+    }
+    
+    function motoqueiroTemProblema(moto) {
+        const pedidosMoto = todosPedidos.filter(p=>p.motoqueiro===moto && !p.cancelado).map(p=>p.pedido);
+        const duplicados = obterPedidosDuplicados();
+        const cancelados = obterPedidosCanceladosSet();
+        const temDuplicado = pedidosMoto.some(p=>duplicados.has(p));
+        const temCancelado = pedidosMoto.some(p=>cancelados.has(p));
+        if(temCancelado) return 'cancelado';
+        if(temDuplicado) return 'repetido';
+        return 'normal';
+    }
+    
+    function playNotificationSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.frequency.value = 880;
+            gainNode.gain.value = 0.3;
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.5);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        } catch(e) { console.log("Som não suportado"); }
+    }
+    
+    function calcularCaixa() {
+        let totalDinheiroPedidos = 0;
+        for(let i=0;i<15;i++) totalDinheiroPedidos += valoresPorTipo[i].dinheiro;
+        let totalRetiradas = retiradas.reduce((s,r)=>s+r.valor,0);
+        return valorInicialCaixa + totalDinheiroPedidos - totalRetiradas;
+    }
+    
+    // Função para obter retiradas associadas a um motoqueiro (pela descrição)
+    function obterRetiradasPorMotoqueiro(nomeMoto) {
+        const nomeLower = nomeMoto.toLowerCase();
+        let total = 0;
+        retiradas.forEach(r => {
+            if (r.descricao && r.descricao.toLowerCase().includes(nomeLower)) {
+                total += r.valor;
+            }
+        });
+        return total;
+    }
+    
+    // Gera relatório detalhado com quebra por motoqueiro e retiradas associadas
+    function gerarRelatorioTexto(paraWhatsApp = false) {
+        let linhas = [];
+        if (!paraWhatsApp) linhas.push("<div class='relatorio-linha'><strong>📊 RELATÓRIO DE EXPEDIENTE</strong></div><div style='margin:10px 0'></div>");
+        else linhas.push("*📊 RELATÓRIO DE EXPEDIENTE*\n");
+        
+        let totalConcluidos = 0;
+        let totalCancelados = todosPedidos.filter(p=>p.cancelado).length;
+        
+        // Dados por motoqueiro
+        for (let i = 0; i < qtdeMotoqueirosAtivos; i++) {
+            const nome = nomesMotoqueiros[i];
+            const entregas = contagem[i];
+            if (entregas === 0 && !paraWhatsApp) continue;
+            totalConcluidos += entregas;
+            const valores = valoresPorTipo[i];
+            const totalMoto = valores.dinheiro + valores.pix + valores.cartao + valores.online;
+            const retiradasMoto = obterRetiradasPorMotoqueiro(nome);
+            
+            let linha = `👤 *${nome}* - ${entregas} entrega(s)`;
+            if (!paraWhatsApp) linha = `<div class='relatorio-linha'><strong>👤 ${nome}</strong> - ${entregas} entrega(s)`;
+            else linha = `\n👤 *${nome}* - ${entregas} entrega(s)`;
+            
+            if (totalMoto > 0) {
+                let detalhes = [];
+                if (valores.dinheiro > 0) detalhes.push(`💵 Dinheiro: ${formatarMoeda(valores.dinheiro)}`);
+                if (valores.pix > 0) detalhes.push(`📱 Pix: ${formatarMoeda(valores.pix)}`);
+                if (valores.cartao > 0) detalhes.push(`💳 Cartão: ${formatarMoeda(valores.cartao)}`);
+                if (valores.online > 0) detalhes.push(`🌐 Online: ${formatarMoeda(valores.online)}`);
+                if (detalhes.length) {
+                    if (!paraWhatsApp) linha += `<br><span style="font-size:12px; margin-left:20px;">${detalhes.join(' | ')}</span>`;
+                    else linha += `\n   ${detalhes.join(' | ')}`;
+                }
+            }
+            if (retiradasMoto > 0) {
+                if (!paraWhatsApp) linha += `<br><span style="font-size:12px; color:#e74c3c; margin-left:20px;">📤 Retirada(s): ${formatarMoeda(retiradasMoto)}</span>`;
+                else linha += `\n   📤 *Retirada(s):* ${formatarMoeda(retiradasMoto)}`;
+            }
+            if (!paraWhatsApp) linha += `</div>`;
+            linhas.push(linha);
+        }
+        
+        // Totais gerais
+        let totalDinheiro = 0, totalPix = 0, totalCartao = 0, totalOnline = 0;
+        for(let i=0;i<15;i++) {
+            totalDinheiro += valoresPorTipo[i].dinheiro;
+            totalPix += valoresPorTipo[i].pix;
+            totalCartao += valoresPorTipo[i].cartao;
+            totalOnline += valoresPorTipo[i].online;
+        }
+        let totalRetiradas = retiradas.reduce((s,r)=>s+r.valor,0);
+        let dinheiroCalculado = calcularCaixa();
+        let valorReal = parseValor(document.getElementById('valorFinalReal').value);
+        
+        if (!paraWhatsApp) linhas.push("<div style='margin-top:15px; border-top:2px solid #ccc;'></div>");
+        else linhas.push("\n---\n");
+        
+        linhas.push(`📦 *Pedidos concluídos:* ${totalConcluidos}`);
+        linhas.push(`❌ *Pedidos cancelados:* ${totalCancelados}`);
+        linhas.push(`💵 *Total DINHEIRO:* ${formatarMoeda(totalDinheiro)}`);
+        linhas.push(`📱 *Total PIX:* ${formatarMoeda(totalPix)}`);
+        linhas.push(`💳 *Total CARTÃO:* ${formatarMoeda(totalCartao)}`);
+        linhas.push(`🌐 *Total ONLINE:* ${formatarMoeda(totalOnline)}`);
+        linhas.push(`💰 *Valor inicial caixa:* ${formatarMoeda(valorInicialCaixa)}`);
+        linhas.push(`📤 *Total retiradas:* ${formatarMoeda(totalRetiradas)}`);
+        linhas.push(`💵 *Dinheiro final (calculado):* ${formatarMoeda(dinheiroCalculado)}`);
+        if (!isNaN(valorReal) && valorReal !== 0) {
+            let diff = valorReal - dinheiroCalculado;
+            linhas.push(`🔍 *Valor real informado:* ${formatarMoeda(valorReal)}`);
+            if (Math.abs(diff) > 0.01) {
+                linhas.push(`⚠️ *Diferença:* ${formatarMoeda(Math.abs(diff))} ${diff>0 ? 'acima' : 'abaixo'}`);
+            } else {
+                linhas.push(`✅ *Caixa conferido!*`);
+            }
+        }
+        if (retiradas.length > 0 && !paraWhatsApp) {
+            linhas.push("<div style='margin-top:10px;'><strong>Detalhe das retiradas:</strong><ul>");
+            retiradas.forEach(r=> linhas.push(`<li>${formatarMoeda(r.valor)} - ${r.descricao || 'Sem descrição'}</li>`));
+            linhas.push("</ul></div>");
+        } else if (retiradas.length > 0 && paraWhatsApp) {
+            linhas.push(`\n📋 *Retiradas detalhadas:*`);
+            retiradas.forEach(r=> linhas.push(`   ${formatarMoeda(r.valor)} - ${r.descricao || 'Sem descrição'}`));
+        }
+        
+        if (paraWhatsApp) return linhas.join('\n');
+        return linhas.join('');
+    }
+    
+    function mostrarRelatorio() {
+        const html = gerarRelatorioTexto(false);
+        document.getElementById('relatorioConteudo').innerHTML = html;
+        document.getElementById('relatorioModal').style.display = 'flex';
+    }
+    
+    function enviarWhatsApp() {
+        let texto = gerarRelatorioTexto(true);
+        texto = encodeURIComponent(texto);
+        window.open(`https://wa.me/?text=${texto}`, '_blank');
+    }
+    
+    function verificarDivergencia() {
+        let valorReal = parseValor(document.getElementById('valorFinalReal').value);
+        if(isNaN(valorReal)) {
+            alert("Digite um valor válido para o caixa real.");
+            return;
+        }
+        let valorCalculado = calcularCaixa();
+        let diferenca = valorReal - valorCalculado;
+        let absDiferenca = Math.abs(diferenca);
+        let alertaDiv = document.getElementById('alertaDivergencia');
+        if(absDiferenca > 10) {
+            if(diferenca > 0) {
+                alertaDiv.innerHTML = `⚠️ ATENÇÃO: O caixa real está ${formatarMoeda(diferenca)} ACIMA do calculado. Verifique se houve entrada extra.`;
+            } else {
+                alertaDiv.innerHTML = `⚠️ ATENÇÃO: O caixa real está ${formatarMoeda(-diferenca)} ABAIXO do calculado. Confira retiradas ou troco.`;
+            }
+            alertaDiv.style.display = 'block';
+        } else {
+            alertaDiv.innerHTML = `✅ Caixa conferido! Diferença de ${formatarMoeda(Math.abs(diferenca))} (dentro da tolerância R$10).`;
+            alertaDiv.style.backgroundColor = '#27ae60';
+            alertaDiv.style.display = 'block';
+            setTimeout(() => { alertaDiv.style.display = 'none'; alertaDiv.style.backgroundColor = '#e74c3c'; }, 5000);
+        }
+    }
+    
+    // Renderização (já implementada anteriormente, aqui apenas resumo)
+    function atualizarInterfaceCompleta() {
+        renderizarContagem();
+        renderizarUltimosPedidos();
+        renderizarCancelados();
+        renderizarResumoPagamento();
+        atualizarTotais();
+        renderizarRetiradas();
+        document.getElementById('valorInicialCaixa').value = formatarMoeda(valorInicialCaixa);
+        document.getElementById('qtdeMotoqueiros').value = qtdeMotoqueirosAtivos;
+        document.getElementById('alertaDivergencia').style.display = 'none';
+    }
+    
+    function renderizarContagem() {
+        const grid = document.getElementById('contagemGrid');
+        grid.innerHTML = '';
+        const maxMotos = Math.min(15, qtdeMotoqueirosAtivos);
+        for(let i=0;i<maxMotos;i++) {
+            const totalValor = valoresPorTipo[i].dinheiro+valoresPorTipo[i].pix+valoresPorTipo[i].cartao+valoresPorTipo[i].online;
+            const status = motoqueiroTemProblema(i+1);
+            let classe = 'card-moto normal';
+            if(status === 'cancelado') classe = 'card-moto cancelado';
+            else if(status === 'repetido') classe = 'card-moto repetido';
+            const card = document.createElement('div');
+            card.className = classe;
+            card.onclick = (e) => { if(e.target.classList?.contains('moto-nome')) return; abrirRelatorioPedido(i+1); };
+            const nomeSpan = document.createElement('span');
+            nomeSpan.className = 'moto-nome';
+            nomeSpan.textContent = nomesMotoqueiros[i];
+            nomeSpan.onclick = (e) => { e.stopPropagation(); iniciarEdicaoNome(i, nomeSpan); };
+            const header = document.createElement('div');
+            header.className = 'moto-header';
+            header.appendChild(nomeSpan);
+            const qtdDiv = document.createElement('div');
+            qtdDiv.className = 'moto-qtd';
+            qtdDiv.textContent = `${contagem[i]} entrega${contagem[i]!==1?'s':''}`;
+            header.appendChild(qtdDiv);
+            const detalhes = document.createElement('div');
+            detalhes.className = 'detalhes-pagamento';
+            detalhes.innerHTML = `
+                <div class="detalhe-item"><span>💵 Dinheiro</span><span>${formatarMoeda(valoresPorTipo[i].dinheiro)}</span></div>
+                <div class="detalhe-item"><span>📱 Pix</span><span>${formatarMoeda(valoresPorTipo[i].pix)}</span></div>
+                <div class="detalhe-item"><span>💳 Cartão</span><span>${formatarMoeda(valoresPorTipo[i].cartao)}</span></div>
+                <div class="detalhe-item"><span>🌐 Online</span><span>${formatarMoeda(valoresPorTipo[i].online)}</span></div>
+                <div class="total-item"><span>TOTAL</span><span>${formatarMoeda(totalValor)}</span></div>
+            `;
+            card.appendChild(header);
+            card.appendChild(detalhes);
+            grid.appendChild(card);
+        }
+    }
+    
+    function iniciarEdicaoNome(idx, element) {
+        const atual = nomesMotoqueiros[idx];
+        const input = document.createElement('input');
+        input.value = atual;
+        input.style.width = '100%';
+        input.style.padding = '4px';
+        input.style.borderRadius = '6px';
+        input.style.border = '1px solid #667eea';
+        const finalizar = () => {
+            const novo = input.value.trim();
+            if(novo && novo !== atual) {
+                nomesMotoqueiros[idx] = novo;
+                todosPedidos.forEach(p => { if(p.motoqueiro === idx+1) p.motoqueiroNome = novo; });
+                salvarLocal(); salvarFirebase();
+                renderizarContagem();
+                renderizarUltimosPedidos();
+                renderizarCancelados();
+            } else {
+                element.textContent = atual;
+                element.style.display = 'inline-block';
+                input.remove();
+            }
+        };
+        input.onblur = finalizar;
+        input.onkeypress = (e) => { if(e.key === 'Enter') finalizar(); };
+        element.style.display = 'none';
+        element.parentNode.insertBefore(input, element.nextSibling);
+        input.focus();
+        input.select();
+    }
+    
+    function renderizarUltimosPedidos() {
+        const container = document.getElementById('ultimosPedidos');
+        const ativos = todosPedidos.filter(p=>!p.cancelado).reverse().slice(0,20);
+        if(!ativos.length) { container.innerHTML = '<div style="text-align:center;">Nenhum pedido ativo</div>'; return; }
+        container.innerHTML = ativos.map(p => `
+            <div class="pedido-item">
+                <div><strong>📦 ${p.pedido}</strong> ${p.pagamento==='dinheiro'?'💵':p.pagamento==='pix'?'📱':p.pagamento==='cartao'?'💳':'🌐'} ${formatarMoeda(p.valor)}
+                    <button onclick="cancelarExistente('${p.pedido}')" style="float:right; background:#e74c3c; color:white; padding:2px 8px;">❌</button>
+                    <button onclick="excluirPedido('${p.id}')" style="float:right; background:#95a5a6; color:white; padding:2px 8px; margin-right:5px;">🗑️</button>
+                </div>
+                <div>🏍️ ${p.motoqueiroNome}</div>
+                <div><small>${p.dataHora}</small></div>
+            </div>
+        `).join('');
+    }
+    
+    function renderizarCancelados() {
+        const container = document.getElementById('canceladosList');
+        const cancelados = todosPedidos.filter(p=>p.cancelado).reverse();
+        if(!cancelados.length) { container.innerHTML = '<div style="text-align:center;">Nenhum cancelado</div>'; return; }
+        container.innerHTML = cancelados.map(p => `
+            <div class="pedido-item cancelado">
+                <div><strong>📦 ${p.pedido}</strong> ${p.pagamento==='dinheiro'?'💵':p.pagamento==='pix'?'📱':p.pagamento==='cartao'?'💳':'🌐'} ${formatarMoeda(p.valor)}</div>
+                <div>🏍️ ${p.motoqueiroNome || 'N/A'}</div>
+                <div>❌ ${p.motivoCancelamento || 'Cancelado'}</div>
+                <div><small>${p.dataCancelamento || p.dataHora}</small></div>
+            </div>
+        `).join('');
+    }
+    
+    function renderizarResumoPagamento() {
+        let totalDin=0, totalPix=0, totalCart=0, totalOn=0;
+        for(let i=0;i<15;i++) {
+            totalDin += valoresPorTipo[i].dinheiro;
+            totalPix += valoresPorTipo[i].pix;
+            totalCart += valoresPorTipo[i].cartao;
+            totalOn += valoresPorTipo[i].online;
+        }
+        document.getElementById('resumoPagamento').innerHTML = `
+            <div class="resumo-item"><span>💵 DINHEIRO</span><strong>${formatarMoeda(totalDin)}</strong></div>
+            <div class="resumo-item"><span>📱 PIX</span><strong>${formatarMoeda(totalPix)}</strong></div>
+            <div class="resumo-item"><span>💳 CARTÃO</span><strong>${formatarMoeda(totalCart)}</strong></div>
+            <div class="resumo-item"><span>🌐 ONLINE</span><strong>${formatarMoeda(totalOn)}</strong></div>
+            <div class="resumo-item" style="border-top:2px solid #667eea;"><strong>TOTAL GERAL</strong><strong>${formatarMoeda(totalDin+totalPix+totalCart+totalOn)}</strong></div>
+        `;
+    }
+    
+    function atualizarTotais() {
+        const totalPed = contagem.reduce((a,b)=>a+b,0);
+        let totalMoney = 0;
+        for(let i=0;i<15;i++) totalMoney += valoresPorTipo[i].dinheiro+valoresPorTipo[i].pix+valoresPorTipo[i].cartao+valoresPorTipo[i].online;
+        document.getElementById('totalPedidos').innerText = totalPed;
+        document.getElementById('totalMoney').innerText = formatarMoeda(totalMoney);
+    }
+    
+    function renderizarRetiradas() {
+        const div = document.getElementById('retiradasList');
+        if(!retiradas.length) { div.innerHTML = '<div style="color:#666;">Nenhuma retirada registrada</div>'; return; }
+        div.innerHTML = retiradas.map((r, idx) => `
+            <div class="retirada-item">
+                <span><strong>${formatarMoeda(r.valor)}</strong> - ${r.descricao || 'Sem descrição'}</span>
+                <button class="btn-remover" onclick="removerRetirada(${idx})">Remover</button>
+            </div>
+        `).join('');
+    }
+    
+    function removerRetirada(idx) {
+        retiradas.splice(idx,1);
+        salvarLocal(); salvarFirebase();
+        renderizarRetiradas();
+    }
+    
+    function salvarValorInicial() {
+        let val = parseValor(document.getElementById('valorInicialCaixa').value);
+        if(isNaN(val)) val = 0;
+        valorInicialCaixa = val;
+        salvarLocal(); salvarFirebase();
+        document.getElementById('valorInicialCaixa').value = formatarMoeda(valorInicialCaixa);
+        alert(`Valor inicial definido para ${formatarMoeda(valorInicialCaixa)}`);
+        document.getElementById('alertaDivergencia').style.display = 'none';
+    }
+    
+    function adicionarRetirada() {
+        let valor = parseValor(document.getElementById('novaRetiradaValor').value);
+        const desc = document.getElementById('novaRetiradaDesc').value.trim();
+        if(isNaN(valor) || valor <= 0) { alert('Valor da retirada inválido'); return; }
+        retiradas.push({ valor, descricao: desc || 'Sem descrição', timestamp: Date.now() });
+        salvarLocal(); salvarFirebase();
+        document.getElementById('novaRetiradaValor').value = '';
+        document.getElementById('novaRetiradaDesc').value = '';
+        renderizarRetiradas();
+        alert(`Retirada de ${formatarMoeda(valor)} adicionada`);
+        document.getElementById('alertaDivergencia').style.display = 'none';
+    }
+    
+    function atualizarQtdeMotoqueiros() {
+        let novaQtde = parseInt(document.getElementById('qtdeMotoqueiros').value);
+        if(isNaN(novaQtde)) novaQtde = 15;
+        if(novaQtde < 1) novaQtde = 1;
+        if(novaQtde > 15) novaQtde = 15;
+        qtdeMotoqueirosAtivos = novaQtde;
+        salvarLocal(); salvarFirebase();
+        renderizarContagem();
+    }
+    
+    function novoExpediente() {
+        if(confirm('Zerar valor inicial e limpar retiradas? Os pedidos permanecem.')) {
+            valorInicialCaixa = 0;
+            retiradas = [];
+            salvarLocal(); salvarFirebase();
+            atualizarInterfaceCompleta();
+            alert('Caixa e retiradas zerados.');
+        }
+    }
+    
+    function registrarEntrega() {
+        const pedido = document.getElementById('pedidoInput').value.trim();
+        const motoNum = parseInt(document.getElementById('motoInput').value);
+        let valor = parseValor(document.getElementById('valorInput').value);
+        let pagamento = pagamentoSelecionado;
+        if(valor===0) pagamento = 'online';
+        
+        if(!pedido || pedido.length<1 || pedido.length>9 || !/^\d+$/.test(pedido)) { alert('Nº pedido inválido (1-9 dígitos)'); return; }
+        if(isNaN(motoNum) || motoNum<1 || motoNum>15) { alert('Motoqueiro 1-15'); return; }
+        if(valor>0 && !pagamento) { alert('Selecione pagamento'); return; }
+        
+        const canceladosSet = obterPedidosCanceladosSet();
+        if(canceladosSet.has(pedido)) { alert(`Pedido ${pedido} cancelado. Não pode registrar.`); return; }
+        
+        const duplicados = obterPedidosDuplicados();
+        if(duplicados.has(pedido)) {
+            const motoqueirosComPedido = obterMotoqueirosPorPedido(pedido);
+            const nomesMotos = motoqueirosComPedido.map(m => `${m} - ${nomesMotoqueiros[m-1]}`).join(', ');
+            alert(`⚠️ Pedido ${pedido} já registrado por: ${nomesMotos}. Cards ficarão AMARELOS.`);
+        }
+        
+        const idx = motoNum-1;
+        contagem[idx]++;
+        if(pagamento==='dinheiro') valoresPorTipo[idx].dinheiro += valor;
+        else if(pagamento==='pix') valoresPorTipo[idx].pix += valor;
+        else if(pagamento==='cartao') valoresPorTipo[idx].cartao += valor;
+        else valoresPorTipo[idx].online += valor;
+        
+        const novo = {
+            id: Date.now()+''+Math.random().toString(36).substr(2,5),
+            pedido, motoqueiro: motoNum, motoqueiroNome: nomesMotoqueiros[idx],
+            valor, pagamento, cancelado: false,
+            timestamp: Date.now(), dataHora: new Date().toLocaleString('pt-BR')
+        };
+        todosPedidos.push(novo);
+        salvarLocal(); salvarFirebase();
+        atualizarInterfaceCompleta();
+        playNotificationSound();
+        
+        document.getElementById('pedidoInput').value = '';
+        document.getElementById('motoInput').value = '';
+        document.getElementById('valorInput').value = '';
+        document.querySelectorAll('.payment-btn').forEach(b=>b.classList.remove('selected'));
+        pagamentoSelecionado = null;
+        atualizarBotoesPagamento();
+        document.getElementById('pedidoInput').focus();
+        document.getElementById('alertaDivergencia').style.display = 'none';
+    }
+    
+    window.cancelarExistente = function(numero) {
+        const ativos = todosPedidos.filter(p=>p.pedido===numero && !p.cancelado);
+        if(!ativos.length) { alert('Nenhum pedido ativo com esse número'); return; }
+        const motivo = prompt(`Motivo para cancelar o pedido ${numero}:`, 'Cliente cancelou');
+        if(!motivo) return;
+        if(confirm(`Cancelar ${ativos.length} entrega(s) do pedido ${numero}?`)) {
+            ativos.forEach(p=>{
+                const idx = p.motoqueiro-1;
+                contagem[idx]--;
+                if(p.pagamento==='dinheiro') valoresPorTipo[idx].dinheiro -= p.valor;
+                else if(p.pagamento==='pix') valoresPorTipo[idx].pix -= p.valor;
+                else if(p.pagamento==='cartao') valoresPorTipo[idx].cartao -= p.valor;
+                else valoresPorTipo[idx].online -= p.valor;
+                p.cancelado = true;
+                p.motivoCancelamento = motivo;
+                p.dataCancelamento = new Date().toLocaleString('pt-BR');
+            });
+            salvarLocal(); salvarFirebase();
+            atualizarInterfaceCompleta();
+            alert(`Pedido ${numero} cancelado.`);
+        }
+    };
+    
+    function cancelarDireto() {
+        const numero = document.getElementById('cancelNumero').value.trim();
+        const motivo = document.getElementById('cancelMotivo').value;
+        const motoNum = parseInt(document.getElementById('cancelMotoqueiro').value);
+        if(!numero || numero.length<1 || numero.length>9 || !/^\d+$/.test(numero)) { alert('Nº inválido'); return; }
+        const ativos = todosPedidos.filter(p=>p.pedido===numero && !p.cancelado);
+        if(ativos.length) {
+            if(confirm(`Existem ${ativos.length} pedido(s) ativo(s) com esse número. Cancelar também?`)) {
+                ativos.forEach(p=>{
+                    const idx = p.motoqueiro-1;
+                    contagem[idx]--;
+                    if(p.pagamento==='dinheiro') valoresPorTipo[idx].dinheiro -= p.valor;
+                    else if(p.pagamento==='pix') valoresPorTipo[idx].pix -= p.valor;
+                    else if(p.pagamento==='cartao') valoresPorTipo[idx].cartao -= p.valor;
+                    else valoresPorTipo[idx].online -= p.valor;
+                    p.cancelado = true;
+                    p.motivoCancelamento = motivo;
+                    p.dataCancelamento = new Date().toLocaleString('pt-BR');
+                });
+            }
+        }
+        const jaCancelado = todosPedidos.some(p=>p.pedido===numero && p.cancelado);
+        if(!jaCancelado) {
+            todosPedidos.push({
+                id: Date.now()+''+Math.random().toString(36).substr(2,5),
+                pedido: numero, motoqueiro: isNaN(motoNum)?null:motoNum,
+                motoqueiroNome: isNaN(motoNum)?'Não atribuído':nomesMotoqueiros[motoNum-1],
+                valor:0, pagamento:'online', cancelado:true, motivoCancelamento:motivo,
+                dataCancelamento: new Date().toLocaleString('pt-BR'),
+                timestamp: Date.now(), dataHora: new Date().toLocaleString('pt-BR')
+            });
+        }
+        salvarLocal(); salvarFirebase();
+        atualizarInterfaceCompleta();
+        fecharModal('cancelModal');
+        alert(`Pedido ${numero} registrado como cancelado.`);
+    }
+    
+    function excluirPedido(id) {
+        if(confirm('Excluir permanentemente?')) {
+            const ped = todosPedidos.find(p=>p.id===id);
+            if(ped && !ped.cancelado) {
+                const idx = ped.motoqueiro-1;
+                contagem[idx]--;
+                if(ped.pagamento==='dinheiro') valoresPorTipo[idx].dinheiro -= ped.valor;
+                else if(ped.pagamento==='pix') valoresPorTipo[idx].pix -= ped.valor;
+                else if(ped.pagamento==='cartao') valoresPorTipo[idx].cartao -= ped.valor;
+                else valoresPorTipo[idx].online -= ped.valor;
+            }
+            todosPedidos = todosPedidos.filter(p=>p.id!==id);
+            salvarLocal(); salvarFirebase();
+            atualizarInterfaceCompleta();
+        }
+    }
+    
+    function abrirRelatorioPedido(motoNum) {
+        const idx = motoNum-1;
+        const pedidos = todosPedidos.filter(p=>p.motoqueiro===motoNum && !p.cancelado);
+        const totalValor = valoresPorTipo[idx].dinheiro+valoresPorTipo[idx].pix+valoresPorTipo[idx].cartao+valoresPorTipo[idx].online;
+        let html = `<h3>${nomesMotoqueiros[idx]}</h3>`;
+        html += `<p><strong>Total entregas:</strong> ${contagem[idx]}<br><strong>Valor total:</strong> ${formatarMoeda(totalValor)}</p>`;
+        html += `<h4>Pedidos:</h4><ul>`;
+        pedidos.forEach(p=>{ html += `<li>📦 ${p.pedido} - ${formatarMoeda(p.valor)} - ${p.pagamento.toUpperCase()} (${p.dataHora})</li>`; });
+        html += `</ul>`;
+        document.getElementById('relatorioPedidoConteudo').innerHTML = html;
+        document.getElementById('modalTitulo').innerHTML = `Relatório - ${nomesMotoqueiros[idx]}`;
+        document.getElementById('relatorioPedidoModal').style.display = 'flex';
+    }
+    
+    function fecharModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
+    
+    function atualizarBotoesPagamento() {
+        const val = parseValor(document.getElementById('valorInput').value);
+        const btns = document.querySelectorAll('.payment-btn');
+        if(val>0) {
+            btns.forEach(b=>b.disabled=false);
+            document.getElementById('valorOpcional').innerHTML = 'obrigatório';
+        } else {
+            btns.forEach(b=>{b.disabled=true;b.classList.remove('selected');});
+            pagamentoSelecionado=null;
+            document.getElementById('valorOpcional').innerHTML = 'opcional (Online)';
+        }
+    }
+    
+    function limparTudo() {
+        if(confirm('APAGAR TODOS os dados? Isso não pode ser desfeito.')) {
+            contagem = Array(15).fill(0);
+            valoresPorTipo = Array(15).fill().map(()=>({dinheiro:0,pix:0,cartao:0,online:0}));
+            nomesMotoqueiros = Array(15).fill().map((_,i)=>`Moto ${i+1}`);
+            todosPedidos = [];
+            valorInicialCaixa = 0;
+            retiradas = [];
+            salvarLocal(); salvarFirebase();
+            atualizarInterfaceCompleta();
+        }
+    }
+    
+    // Eventos
+    document.getElementById('registrarBtn').addEventListener('click', registrarEntrega);
+    document.getElementById('cancelarPedidoBtn').addEventListener('click', ()=> { document.getElementById('cancelNumero').value=''; document.getElementById('cancelModal').style.display='flex'; });
+    document.getElementById('confirmCancel').addEventListener('click', cancelarDireto);
+    document.getElementById('btnSync').addEventListener('click', ()=>{carregarFirebase(); alert('Sincronizado');});
+    document.getElementById('btnLimpar').addEventListener('click', limparTudo);
+    document.getElementById('valorInput').addEventListener('input', atualizarBotoesPagamento);
+    document.getElementById('btnAtualizarMotoqueiros').addEventListener('click', atualizarQtdeMotoqueiros);
+    document.getElementById('btnSalvarInicial').addEventListener('click', salvarValorInicial);
+    document.getElementById('btnAddRetirada').addEventListener('click', adicionarRetirada);
+    document.getElementById('btnRelatorio').addEventListener('click', mostrarRelatorio);
+    document.getElementById('btnWhatsApp').addEventListener('click', enviarWhatsApp);
+    document.getElementById('btnNovoExpediente').addEventListener('click', novoExpediente);
+    document.getElementById('btnVerificarCaixa').addEventListener('click', verificarDivergencia);
+    
+    document.querySelectorAll('.payment-btn').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+            if(btn.disabled) return;
+            document.querySelectorAll('.payment-btn').forEach(b=>b.classList.remove('selected'));
+            btn.classList.add('selected');
+            pagamentoSelecionado = btn.dataset.payment;
+        });
+        // Permitir Enter nos botões de pagamento
+        btn.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') {
+                e.preventDefault();
+                btn.click();
+            }
+        });
+        btn.setAttribute('tabindex', '0');
+    });
+    
+    document.getElementById('pedidoInput').addEventListener('keypress', e=>{if(e.key==='Enter') document.getElementById('motoInput').focus();});
+    document.getElementById('motoInput').addEventListener('keypress', e=>{if(e.key==='Enter') document.getElementById('valorInput').focus();});
+    document.getElementById('valorInput').addEventListener('keypress', e=>{if(e.key==='Enter') registrarEntrega();});
+    
+    window.excluirPedido = excluirPedido;
+    window.cancelarExistente = cancelarExistente;
+    window.removerRetirada = removerRetirada;
+    
+    carregarFirebase();
+    atualizarBotoesPagamento();
+</script>
+</body>
+</html>
