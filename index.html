@@ -395,7 +395,7 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🚀 Sistema de Entregas 2</h1>
+        <h1>🚀 Sistema de Entregas</h1>
         <p>🔎 Busque um pedido e saiba com qual motoqueiro está | 🟡 Repetido | 🔴 Cancelado | 💰 Caixa em tempo real</p>
     </div>
     <div class="status-bar">
@@ -903,16 +903,11 @@
             header.appendChild(qtdDiv);
             const detalhes = document.createElement('div');
             detalhes.className = 'detalhes-pagamento';
+            const bebidas = ajuste.bebidas || { suco: 0, lata: 0, litro: 0, valor: 0 };
             detalhes.innerHTML = `
-                <div class="detalhe-item"><span>💵 Dinheiro</span><span>${formatarMoeda(valoresPorTipo[i].dinheiro)}</span></div>
-                <div class="detalhe-item"><span>📱 Pix Davi</span><span>${formatarMoeda(valoresPorTipo[i].pix)}</span></div>
-                <div class="detalhe-item"><span>💳 Cartão</span><span>${formatarMoeda(valoresPorTipo[i].cartao)}</span></div>
+                <div class="detalhe-item"><span>🥤 Suco/Lata/1L</span><span>${bebidas.suco || 0}/${bebidas.lata || 0}/${bebidas.litro || 0}</span></div>
+                <div class="detalhe-item"><span>📲 Dinheiro Pix para moto</span><span>${formatarMoeda(ajuste.pixMoto || 0)}</span></div>
                 <div class="detalhe-item"><span>💸 Pegou do caixa</span><span>${formatarMoeda(ajuste.retiradaCaixa || 0)}</span></div>
-                <div class="detalhe-item"><span>📲 Dinheiro em Pix p/ moto</span><span>${formatarMoeda(ajuste.pixMoto || 0)}</span></div>
-                <div class="detalhe-item"><span>🥤 Bebidas</span><span>${formatarMoeda((ajuste.bebidas && ajuste.bebidas.valor) || 0)}</span></div>
-                <div class="detalhe-item"><span>Suco/Lata/1L</span><span>${(ajuste.bebidas && ajuste.bebidas.suco) || 0}/${(ajuste.bebidas && ajuste.bebidas.lata) || 0}/${(ajuste.bebidas && ajuste.bebidas.litro) || 0}</span></div>
-                <div class="total-item"><span>VENDAS</span><span>${formatarMoeda(totalValor)}</span></div>
-                <div class="total-item"><span>DESCONTOS/ACERTO</span><span>${formatarMoeda(totalDescontos)}</span></div>
             `;
             card.appendChild(header);
             card.appendChild(detalhes);
