@@ -1151,18 +1151,29 @@
         }
     }
     
-    function limparTudo() {
-        if(confirm('APAGAR TODOS os dados? Isso não pode ser desfeito.')) {
-            contagem = Array(15).fill(0);
-            valoresPorTipo = Array(15).fill().map(()=>({dinheiro:0,pix:0,cartao:0,online:0}));
-            nomesMotoqueiros = Array(15).fill().map((_,i)=>`Moto ${i+1}`);
-            todosPedidos = [];
-            valorInicialCaixa = 0;
-            retiradas = [];
-            salvarLocal(); salvarFirebase();
-            atualizarInterfaceCompleta();
-        }
+function limparTudo() {
+    const senha = prompt('Digite a senha para limpar tudo:');
+
+    if (senha === null) return;
+
+    if (senha !== 'Heimer245') {
+        alert('❌ Senha incorreta. Nada foi apagado.');
+        return;
     }
+
+    if(confirm('APAGAR TODOS os dados? Isso não pode ser desfeito.')) {
+        contagem = Array(15).fill(0);
+        valoresPorTipo = Array(15).fill().map(()=>({dinheiro:0,pix:0,cartao:0,online:0}));
+        nomesMotoqueiros = Array(15).fill().map((_,i)=>`Moto ${i+1}`);
+        todosPedidos = [];
+        valorInicialCaixa = 0;
+        retiradas = [];
+        salvarLocal(); 
+        salvarFirebase();
+        atualizarInterfaceCompleta();
+        alert('✅ Tudo foi limpo com sucesso.');
+    }
+}
     
     // Eventos
     document.getElementById('registrarBtn').addEventListener('click', registrarEntrega);
