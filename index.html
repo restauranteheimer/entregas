@@ -451,7 +451,7 @@
     <div class="caixa-area">
         <h3>💰 Controle de Caixa</h3>
         <div class="inline-group">
-            <div class="input-group"><label>Valor inicial do caixa (R$)</label><input type="text" id="valorInicialCaixa" placeholder="Ex: 200,00"></div>
+            <div class="input-group"><label>Valor inicial do caixa (R$)</label><input type="text" id="valorInicialCaixa" placeholder="Ex: 200,00" class="selecionar-ao-focar"></div>
             <button id="btnSalvarInicial" style="background:#334155;">Salvar</button>
         </div>
         <div class="inline-group">
@@ -463,14 +463,14 @@
         <h4>📤 Retiradas (valores retirados do caixa)</h4>
         <div id="retiradasList"></div>
         <div class="inline-group" style="margin-top:5px;">
-            <div class="input-group"><label>Valor da retirada (R$)</label><input type="text" id="novaRetiradaValor" placeholder="Ex: 50,00"></div>
+            <div class="input-group"><label>Valor da retirada (R$)</label><input type="text" id="novaRetiradaValor" placeholder="Ex: 50,00" class="selecionar-ao-focar"></div>
             <div class="input-group"><label>Descrição (inclua nome do motoqueiro se aplicável)</label><input type="text" id="novaRetiradaDesc" placeholder="Ex: Lucas - gasolina"></div>
             <button id="btnAddRetirada" class="btn-add">+ Adicionar Retirada</button>
         </div>
         
         <h4 style="margin-top:15px;">🔍 Conferência de Caixa</h4>
         <div class="inline-group">
-            <div class="input-group"><label>Valor final REAL do caixa (R$)</label><input type="text" id="valorFinalReal" placeholder="Quanto realmente tem no caixa?"></div>
+            <div class="input-group"><label>Valor final REAL do caixa (R$)</label><input type="text" id="valorFinalReal" placeholder="Quanto realmente tem no caixa?" class="selecionar-ao-focar"></div>
             <button id="btnVerificarCaixa" class="btn-verificar">Verificar Divergência</button>
         </div>
         <div id="alertaDivergencia" style="display:none;" class="diferenca-alerta"></div>
@@ -566,7 +566,6 @@
         return (a.retiradaCaixa || 0) + (a.pixMoto || 0) + ((a.bebidas && a.bebidas.valor) || 0);
     }
 
-    
     function salvarLocal() {
         const backup = { contagem, valoresPorTipo, ajustesMotoqueiros, nomesMotoqueiros, todosPedidos, valorInicialCaixa, retiradas, qtdeMotoqueirosAtivos };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(backup));
@@ -620,14 +619,13 @@
         }).catch(err=>{ carregarLocal(); atualizarInterfaceCompleta(); });
     }
     
-    // --- FUNÇÃO DE BUSCA POR PEDIDO (retorna motoqueiro) ---
+    // --- FUNÇÃO DE BUSCA POR PEDIDO ---
     function buscarPedido() {
         const numero = document.getElementById('buscaPedidoInput').value.trim();
         if (!numero) {
             document.getElementById('resultadoBusca').style.display = 'none';
             return;
         }
-        // Filtrar pedidos ativos (não cancelados) com esse número
         const ativos = todosPedidos.filter(p => p.pedido === numero && !p.cancelado);
         const cancelados = todosPedidos.filter(p => p.pedido === numero && p.cancelado === true);
         
@@ -635,7 +633,6 @@
         let tipo = '';
         
         if (ativos.length > 0) {
-            // Existe pelo menos um pedido ativo
             const motosInfo = ativos.map(p => {
                 const valorStr = formatarMoeda(p.valor);
                 const pagStr = p.pagamento === 'pix' ? 'PIX DAVI' : (p.pagamento === 'dinheiro' ? 'DINHEIRO' : (p.pagamento === 'cartao' ? 'CARTÃO' : 'SEM VALOR'));
@@ -648,7 +645,6 @@
             }
             tipo = 'success';
         } else if (cancelados.length > 0) {
-            // Pedido cancelado
             const primeiroCancelado = cancelados[0];
             const motivo = primeiroCancelado.motivoCancelamento || 'Não informado';
             const motoNome = primeiroCancelado.motoqueiroNome || 'Não atribuído';
@@ -713,11 +709,29 @@
         } catch(e) { console.log("Som não suportado"); }
     }
     
+    // Cálculo antigo (usado na verificação de divergência padrão)
     function calcularCaixa() {
         let totalDinheiroPedidos = 0;
         for(let i=0;i<15;i++) totalDinheiroPedidos += valoresPorTipo[i].dinheiro;
         let totalRetiradas = retiradas.reduce((s,r)=>s+r.valor,0);
         return valorInicialCaixa + totalDinheiroPedidos - totalRetiradas;
+    }
+    
+    // Novo cálculo completo para relatório conforme solicitado
+    function calcularCaixaCompleto() {
+        let totalDinheiroPedidos = 0;
+        for(let i=0;i<15;i++) totalDinheiroPedidos += valoresPorTipo[i].dinheiro;
+        
+        let totalPegouCaixaMotos = 0;
+        let totalPixMoto = 0;
+        for(let i=0;i<15;i++) {
+            totalPegouCaixaMotos += ajustesMotoqueiros[i]?.retiradaCaixa || 0;
+            totalPixMoto += ajustesMotoqueiros[i]?.pixMoto || 0;
+        }
+        let totalRetiradasLista = retiradas.reduce((s,r)=>s+r.valor,0);
+        
+        let caixaPrevisto = valorInicialCaixa + totalDinheiroPedidos - totalPegouCaixaMotos - totalPixMoto - totalRetiradasLista;
+        return caixaPrevisto;
     }
     
     function obterRetiradasPorMotoqueiro(nomeMoto) {
@@ -739,55 +753,67 @@
         let totalConcluidos = 0;
         let totalCancelados = todosPedidos.filter(p=>p.cancelado).length;
         
+        // Lista motoqueiros ativos
         for (let i = 0; i < qtdeMotoqueirosAtivos; i++) {
             const nome = nomesMotoqueiros[i];
             const entregas = contagem[i];
             if (entregas === 0 && !paraWhatsApp) continue;
             totalConcluidos += entregas;
             const valores = valoresPorTipo[i];
-            const totalMoto = valores.dinheiro + valores.pix + valores.cartao + valores.online;
-            const retiradasMoto = obterRetiradasPorMotoqueiro(nome);
-            const ajusteMoto = ajustesMotoqueiros[i] || criarAjustesPadrao()[0];
-            const totalDescontosMoto = totalAjustesMoto(i);
+            const ajuste = ajustesMotoqueiros[i] || criarAjustesPadrao()[0];
+            const retiradaCaixa = ajuste.retiradaCaixa || 0;
+            const pixMoto = ajuste.pixMoto || 0;
+            const bebidas = ajuste.bebidas || { suco:0, lata:0, litro:0, valor:0 };
+            const totalDescontos = retiradaCaixa + pixMoto + bebidas.valor;
             
             let linha = `👤 *${nome}* - ${entregas} entrega(s)`;
             if (!paraWhatsApp) linha = `<div class='relatorio-linha'><strong>👤 ${nome}</strong> - ${entregas} entrega(s)`;
             else linha = `\n👤 *${nome}* - ${entregas} entrega(s)`;
             
-            if (totalMoto > 0) {
-                let detalhes = [];
-                if (valores.dinheiro > 0) detalhes.push(`💵 Dinheiro: ${formatarMoeda(valores.dinheiro)}`);
-                if (valores.pix > 0) detalhes.push(`📱 Pix Davi: ${formatarMoeda(valores.pix)}`);
-                if (valores.cartao > 0) detalhes.push(`💳 Cartão: ${formatarMoeda(valores.cartao)}`);
-
-                if (detalhes.length) {
-                    if (!paraWhatsApp) linha += `<br><span style="font-size:12px; margin-left:20px;">${detalhes.join(' | ')}</span>`;
-                    else linha += `\n   ${detalhes.join(' | ')}`;
-                }
+            // Detalhes de pagamento (dinheiro/pix/cartão)
+            let detalhesPag = [];
+            if (valores.dinheiro > 0) detalhesPag.push(`💵 Dinheiro: ${formatarMoeda(valores.dinheiro)}`);
+            if (valores.pix > 0) detalhesPag.push(`📱 Pix Davi: ${formatarMoeda(valores.pix)}`);
+            if (valores.cartao > 0) detalhesPag.push(`💳 Cartão: ${formatarMoeda(valores.cartao)}`);
+            if (detalhesPag.length) {
+                if (!paraWhatsApp) linha += `<br><span style="font-size:12px; margin-left:20px;">${detalhesPag.join(' | ')}</span>`;
+                else linha += `\n   ${detalhesPag.join(' | ')}`;
             }
-            if (totalDescontosMoto > 0) {
-                const b = ajusteMoto.bebidas || {suco:0,lata:0,litro:0,valor:0};
-                if (!paraWhatsApp) linha += `<br><span style="font-size:12px; color:#7c2d12; margin-left:20px;">💸 Acertos/descontos: ${formatarMoeda(totalDescontosMoto)} | Caixa: ${formatarMoeda(ajusteMoto.retiradaCaixa || 0)} | Pix p/ moto: ${formatarMoeda(ajusteMoto.pixMoto || 0)} | Bebidas: ${formatarMoeda(b.valor || 0)} (${b.suco||0} suco/${b.lata||0} lata/${b.litro||0} 1L)</span>`;
-                else linha += `
-   💸 *Acertos/descontos:* ${formatarMoeda(totalDescontosMoto)} | Caixa: ${formatarMoeda(ajusteMoto.retiradaCaixa || 0)} | Pix p/ moto: ${formatarMoeda(ajusteMoto.pixMoto || 0)} | Bebidas: ${formatarMoeda(b.valor || 0)} (${b.suco||0} suco/${b.lata||0} lata/${b.litro||0} 1L)`;
+            
+            // Acertos/Descontos
+            if (totalDescontos !== 0 || retiradaCaixa !==0 || pixMoto!==0 || bebidas.valor!==0) {
+                if (!paraWhatsApp) linha += `<br><span style="font-size:12px; color:#7c2d12; margin-left:20px;">💸 Acertos/Descontos: ${formatarMoeda(totalDescontos)} | Pegou do caixa: ${formatarMoeda(retiradaCaixa)} | Pix p/ moto: ${formatarMoeda(pixMoto)} | Bebidas: ${formatarMoeda(bebidas.valor)} (${bebidas.suco} suco / ${bebidas.lata} lata / ${bebidas.litro} 1L)</span>`;
+                else linha += `\n   💸 *Acertos/Descontos:* ${formatarMoeda(totalDescontos)} | Pegou do caixa: ${formatarMoeda(retiradaCaixa)} | Pix p/ moto: ${formatarMoeda(pixMoto)} | Bebidas: ${formatarMoeda(bebidas.valor)} (${bebidas.suco} suco / ${bebidas.lata} lata / ${bebidas.litro} 1L)`;
+            } else {
+                if (!paraWhatsApp) linha += `<br><span style="font-size:12px; margin-left:20px;">💸 Sem acertos registrados</span>`;
+                else linha += `\n   💸 Sem acertos registrados`;
             }
+            
+            // Retiradas específicas do motoqueiro (da lista geral que mencione o nome)
+            const retiradasMoto = obterRetiradasPorMotoqueiro(nome);
             if (retiradasMoto > 0) {
-                if (!paraWhatsApp) linha += `<br><span style="font-size:12px; color:#e74c3c; margin-left:20px;">📤 Retirada(s): ${formatarMoeda(retiradasMoto)}</span>`;
-                else linha += `\n   📤 *Retirada(s):* ${formatarMoeda(retiradasMoto)}`;
+                if (!paraWhatsApp) linha += `<br><span style="font-size:12px; color:#e74c3c; margin-left:20px;">📤 Retirada(s) listadas: ${formatarMoeda(retiradasMoto)}</span>`;
+                else linha += `\n   📤 *Retirada(s) listadas:* ${formatarMoeda(retiradasMoto)}`;
             }
             if (!paraWhatsApp) linha += `</div>`;
             linhas.push(linha);
         }
         
-        let totalDinheiro = 0, totalPix = 0, totalCartao = 0, totalOnline = 0;
+        // Totais gerais e cálculo de caixa completo
+        let totalDinheiro = 0, totalPix = 0, totalCartao = 0;
         for(let i=0;i<15;i++) {
             totalDinheiro += valoresPorTipo[i].dinheiro;
             totalPix += valoresPorTipo[i].pix;
             totalCartao += valoresPorTipo[i].cartao;
-            totalOnline += valoresPorTipo[i].online;
         }
-        let totalRetiradas = retiradas.reduce((s,r)=>s+r.valor,0);
-        let dinheiroCalculado = calcularCaixa();
+        let totalRetiradasLista = retiradas.reduce((s,r)=>s+r.valor,0);
+        let totalPegouCaixaMotos = 0;
+        let totalPixMoto = 0;
+        for(let i=0;i<15;i++) {
+            totalPegouCaixaMotos += ajustesMotoqueiros[i]?.retiradaCaixa || 0;
+            totalPixMoto += ajustesMotoqueiros[i]?.pixMoto || 0;
+        }
+        let caixaPrevisto = calcularCaixaCompleto();
         let valorReal = parseValor(document.getElementById('valorFinalReal').value);
         
         if (!paraWhatsApp) linhas.push("<div style='margin-top:15px; border-top:2px solid #ccc;'></div>");
@@ -795,23 +821,29 @@
         
         linhas.push(`📦 *Pedidos concluídos:* ${totalConcluidos}`);
         linhas.push(`❌ *Pedidos cancelados:* ${totalCancelados}`);
-        linhas.push(`💵 *Total DINHEIRO:* ${formatarMoeda(totalDinheiro)}`);
+        linhas.push(`💵 *Total DINHEIRO (pedidos):* ${formatarMoeda(totalDinheiro)}`);
         linhas.push(`📱 *Total PIX DAVI:* ${formatarMoeda(totalPix)}`);
         linhas.push(`💳 *Total CARTÃO:* ${formatarMoeda(totalCartao)}`);
         linhas.push(`💰 *Valor inicial caixa:* ${formatarMoeda(valorInicialCaixa)}`);
-        linhas.push(`📤 *Total retiradas:* ${formatarMoeda(totalRetiradas)}`);
-        linhas.push(`💵 *Dinheiro final (calculado):* ${formatarMoeda(dinheiroCalculado)}`);
+        linhas.push(`📤 *Total retiradas (lista geral):* ${formatarMoeda(totalRetiradasLista)}`);
+        linhas.push(`💸 *Total "Pegou do caixa" (motos):* ${formatarMoeda(totalPegouCaixaMotos)}`);
+        linhas.push(`📲 *Total "Pix p/ moto":* ${formatarMoeda(totalPixMoto)}`);
+        linhas.push(`🧾 *Cálculo do Caixa Previsto:*`);
+        linhas.push(`   ${formatarMoeda(valorInicialCaixa)} (inicial) + ${formatarMoeda(totalDinheiro)} (dinheiro pedidos) - ${formatarMoeda(totalPegouCaixaMotos)} (pegou caixa motos) - ${formatarMoeda(totalPixMoto)} (pix moto) - ${formatarMoeda(totalRetiradasLista)} (retiradas) = ${formatarMoeda(caixaPrevisto)}`);
         if (!isNaN(valorReal) && valorReal !== 0) {
-            let diff = valorReal - dinheiroCalculado;
+            let diff = valorReal - caixaPrevisto;
             linhas.push(`🔍 *Valor real informado:* ${formatarMoeda(valorReal)}`);
             if (Math.abs(diff) > 0.01) {
-                linhas.push(`⚠️ *Diferença:* ${formatarMoeda(Math.abs(diff))} ${diff>0 ? 'acima' : 'abaixo'}`);
+                linhas.push(`⚠️ *Diferença:* ${formatarMoeda(Math.abs(diff))} ${diff>0 ? 'acima' : 'abaixo'} do previsto.`);
             } else {
                 linhas.push(`✅ *Caixa conferido!*`);
             }
+        } else {
+            linhas.push(`ℹ️ Nenhum valor real informado para comparação.`);
         }
+        
         if (retiradas.length > 0 && !paraWhatsApp) {
-            linhas.push("<div style='margin-top:10px;'><strong>Detalhe das retiradas:</strong><ul>");
+            linhas.push("<div style='margin-top:10px;'><strong>Detalhe das retiradas (lista geral):</strong><ul>");
             retiradas.forEach(r=> linhas.push(`<li>${formatarMoeda(r.valor)} - ${r.descricao || 'Sem descrição'}</li>`));
             linhas.push("</ul></div>");
         } else if (retiradas.length > 0 && paraWhatsApp) {
@@ -841,7 +873,7 @@
             alert("Digite um valor válido para o caixa real.");
             return;
         }
-        let valorCalculado = calcularCaixa();
+        let valorCalculado = calcularCaixa(); // usa cálculo antigo para manter compatibilidade
         let diferenca = valorReal - valorCalculado;
         let absDiferenca = Math.abs(diferenca);
         let alertaDiv = document.getElementById('alertaDivergencia');
@@ -870,7 +902,6 @@
         document.getElementById('valorInicialCaixa').value = formatarMoeda(valorInicialCaixa);
         document.getElementById('qtdeMotoqueiros').value = qtdeMotoqueirosAtivos;
         document.getElementById('alertaDivergencia').style.display = 'none';
-        // limpa resultado da busca visualmente ao atualizar dados (opcional)
         const resultDiv = document.getElementById('resultadoBusca');
         if(resultDiv.style.display !== 'none') resultDiv.style.display = 'none';
     }
@@ -946,6 +977,36 @@
         input.select();
     }
     
+    // NOVA FUNÇÃO: cancelar pedido individual por ID
+    function cancelarPedidoIndividual(id) {
+        const pedidoIndex = todosPedidos.findIndex(p => p.id === id);
+        if (pedidoIndex === -1) return;
+        const pedido = todosPedidos[pedidoIndex];
+        if (pedido.cancelado) {
+            alert('Este pedido já está cancelado.');
+            return;
+        }
+        const motivo = prompt(`Motivo para cancelar o pedido ${pedido.pedido} (motoqueiro ${pedido.motoqueiroNome}):`, 'Cliente cancelou');
+        if (!motivo) return;
+        
+        // Reverter contagem e valores
+        const idx = pedido.motoqueiro - 1;
+        contagem[idx]--;
+        if (pedido.pagamento === 'dinheiro') valoresPorTipo[idx].dinheiro -= pedido.valor;
+        else if (pedido.pagamento === 'pix') valoresPorTipo[idx].pix -= pedido.valor;
+        else if (pedido.pagamento === 'cartao') valoresPorTipo[idx].cartao -= pedido.valor;
+        else valoresPorTipo[idx].online -= pedido.valor;
+        
+        pedido.cancelado = true;
+        pedido.motivoCancelamento = motivo;
+        pedido.dataCancelamento = new Date().toLocaleString('pt-BR');
+        
+        salvarLocal();
+        salvarFirebase();
+        atualizarInterfaceCompleta();
+        alert(`Pedido ${pedido.pedido} cancelado individualmente.`);
+    }
+    
     function renderizarUltimosPedidos() {
         const container = document.getElementById('ultimosPedidos');
         const ativos = todosPedidos.filter(p=>!p.cancelado).reverse().slice(0,20);
@@ -953,8 +1014,8 @@
         container.innerHTML = ativos.map(p => `
             <div class="pedido-item">
                 <div><strong>📦 ${p.pedido}</strong> ${p.pagamento==='dinheiro'?'💵':p.pagamento==='pix'?'📱 PIX DAVI':p.pagamento==='cartao'?'💳':'—'} ${formatarMoeda(p.valor)}
-                    <button onclick="cancelarExistente('${p.pedido}')" style="float:right; background:#e74c3c; color:white; padding:2px 8px;">❌</button>
-                    <button onclick="excluirPedido('${p.id}')" style="float:right; background:#95a5a6; color:white; padding:2px 8px; margin-right:5px;">🗑️</button>
+                    <button onclick="cancelarPedidoIndividual('${p.id}')" style="float:right; background:#e74c3c; color:white; padding:2px 8px;">❌ Cancelar este</button>
+                    <button onclick="excluirPedido('${p.id}')" style="float:right; background:#95a5a6; color:white; padding:2px 8px; margin-right:5px;">🗑️ Excluir</button>
                 </div>
                 <div>🏍️ ${p.motoqueiroNome}</div>
                 <div><small>${p.dataHora}</small></div>
@@ -977,12 +1038,11 @@
     }
     
     function renderizarResumoPagamento() {
-        let totalDin=0, totalPix=0, totalCart=0, totalOn=0;
+        let totalDin=0, totalPix=0, totalCart=0;
         for(let i=0;i<15;i++) {
             totalDin += valoresPorTipo[i].dinheiro;
             totalPix += valoresPorTipo[i].pix;
             totalCart += valoresPorTipo[i].cartao;
-            totalOn += valoresPorTipo[i].online;
         }
         document.getElementById('resumoPagamento').innerHTML = `
             <div class="resumo-item"><span>💵 DINHEIRO</span><strong>${formatarMoeda(totalDin)}</strong></div>
@@ -1109,29 +1169,6 @@
         document.getElementById('alertaDivergencia').style.display = 'none';
     }
     
-    window.cancelarExistente = function(numero) {
-        const ativos = todosPedidos.filter(p=>p.pedido===numero && !p.cancelado);
-        if(!ativos.length) { alert('Nenhum pedido ativo com esse número'); return; }
-        const motivo = prompt(`Motivo para cancelar o pedido ${numero}:`, 'Cliente cancelou');
-        if(!motivo) return;
-        if(confirm(`Cancelar ${ativos.length} entrega(s) do pedido ${numero}?`)) {
-            ativos.forEach(p=>{
-                const idx = p.motoqueiro-1;
-                contagem[idx]--;
-                if(p.pagamento==='dinheiro') valoresPorTipo[idx].dinheiro -= p.valor;
-                else if(p.pagamento==='pix') valoresPorTipo[idx].pix -= p.valor;
-                else if(p.pagamento==='cartao') valoresPorTipo[idx].cartao -= p.valor;
-                else valoresPorTipo[idx].online -= p.valor;
-                p.cancelado = true;
-                p.motivoCancelamento = motivo;
-                p.dataCancelamento = new Date().toLocaleString('pt-BR');
-            });
-            salvarLocal(); salvarFirebase();
-            atualizarInterfaceCompleta();
-            alert(`Pedido ${numero} cancelado.`);
-        }
-    };
-    
     function cancelarDireto() {
         const numero = document.getElementById('cancelNumero').value.trim();
         const motivo = document.getElementById('cancelMotivo').value;
@@ -1199,12 +1236,12 @@
             <div class="ajuste-box">
                 <h4>💸 Acertos do Motoqueiro</h4>
                 <div class="ajuste-form-grid">
-                    <div class="input-group"><label>Pegou dinheiro do caixa (R$)</label><input type="text" id="ajusteRetiradaCaixa" value="${(ajuste.retiradaCaixa || 0).toLocaleString('pt-BR', {minimumFractionDigits:2})}"></div>
-                    <div class="input-group"><label>Pedido dinheiro recebido em Pix pelo moto (R$)</label><input type="text" id="ajustePixMoto" value="${(ajuste.pixMoto || 0).toLocaleString('pt-BR', {minimumFractionDigits:2})}"></div>
+                    <div class="input-group"><label>Pegou dinheiro do caixa (R$)</label><input type="text" id="ajusteRetiradaCaixa" value="${(ajuste.retiradaCaixa || 0).toFixed(2)}" placeholder="0,00" class="selecionar-ao-focar"></div>
+                    <div class="input-group"><label>Pedido dinheiro recebido em Pix pelo moto (R$)</label><input type="text" id="ajustePixMoto" value="${(ajuste.pixMoto || 0).toFixed(2)}" placeholder="0,00" class="selecionar-ao-focar"></div>
                     <div class="input-group"><label>Qtd Suco</label><input type="number" id="bebidaSuco" min="0" value="${(ajuste.bebidas && ajuste.bebidas.suco) || 0}"></div>
                     <div class="input-group"><label>Qtd Lata</label><input type="number" id="bebidaLata" min="0" value="${(ajuste.bebidas && ajuste.bebidas.lata) || 0}"></div>
                     <div class="input-group"><label>Qtd 1 Litro</label><input type="number" id="bebidaLitro" min="0" value="${(ajuste.bebidas && ajuste.bebidas.litro) || 0}"></div>
-                    <div class="input-group"><label>Total bebidas a descontar (R$)</label><input type="text" id="bebidaValor" value="${((ajuste.bebidas && ajuste.bebidas.valor) || 0).toLocaleString('pt-BR', {minimumFractionDigits:2})}"></div>
+                    <div class="input-group"><label>Total bebidas a descontar (R$)</label><input type="text" id="bebidaValor" value="${((ajuste.bebidas && ajuste.bebidas.valor) || 0).toFixed(2)}" placeholder="0,00" class="selecionar-ao-focar"></div>
                 </div>
                 <button onclick="salvarAjusteMotoqueiro(${motoNum})" style="background:#166534; margin-top:12px;">Salvar acerto deste motoqueiro</button>
             </div>`;
@@ -1217,8 +1254,13 @@
         document.getElementById('relatorioPedidoConteudo').innerHTML = html;
         document.getElementById('modalTitulo').innerHTML = `Relatório - ${nomesMotoqueiros[idx]}`;
         document.getElementById('relatorioPedidoModal').style.display = 'flex';
+        
+        // adicionar evento de seleção automática nos campos monetários
+        document.querySelectorAll('.selecionar-ao-focar').forEach(input => {
+            input.addEventListener('focus', function() { this.select(); });
+        });
     }
-
+    
     function salvarAjusteMotoqueiro(motoNum) {
         const idx = motoNum - 1;
         ajustesMotoqueiros[idx] = {
@@ -1238,7 +1280,7 @@
         alert('✅ Acerto do motoqueiro salvo.');
         document.getElementById('pedidoInput').focus();
     }
-
+    
     function fecharModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
     
     function atualizarBotoesPagamento() {
@@ -1260,21 +1302,18 @@
             if (campoPedido) campoPedido.focus();
         }, 80);
     }
-
+    
     function limparTudo() {
         const senha = prompt('Digite a senha para limpar tudo:');
-
         if (senha === null) {
             focarNumeroPedido();
             return;
         }
-
         if (senha !== 'Heimer245') {
             alert('❌ Senha incorreta. Nada foi apagado.');
             focarNumeroPedido();
             return;
         }
-
         if(confirm('APAGAR TODOS os dados? Isso não pode ser desfeito.')) {
             contagem = Array(15).fill(0);
             valoresPorTipo = Array(15).fill().map(()=>({dinheiro:0,pix:0,cartao:0,online:0}));
@@ -1293,7 +1332,7 @@
         }
     }
     
-    // Eventos
+    // Eventos e inicialização
     document.getElementById('registrarBtn').addEventListener('click', registrarEntrega);
     document.getElementById('cancelarPedidoBtn').addEventListener('click', ()=> { document.getElementById('cancelNumero').value=''; document.getElementById('cancelModal').style.display='flex'; });
     document.getElementById('confirmCancel').addEventListener('click', cancelarDireto);
@@ -1325,9 +1364,14 @@
     document.getElementById('valorInput').addEventListener('keypress', e=>{if(e.key==='Enter') registrarEntrega();});
     
     window.excluirPedido = excluirPedido;
-    window.cancelarExistente = cancelarExistente;
+    window.cancelarPedidoIndividual = cancelarPedidoIndividual;
     window.removerRetirada = removerRetirada;
     window.salvarAjusteMotoqueiro = salvarAjusteMotoqueiro;
+    
+    // Seleção automática para inputs monetários (geral)
+    document.querySelectorAll('.selecionar-ao-focar').forEach(input => {
+        input.addEventListener('focus', function() { this.select(); });
+    });
     
     carregarFirebase();
     atualizarBotoesPagamento();
