@@ -3,104 +3,361 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Sistema de Entregas - Relatório + WhatsApp</title>
+    <title>Sistema de Entregas Heimer - Caixa + WhatsApp</title>
     <style>
+        :root {
+            --bg: #f3f4f6;
+            --panel: #ffffff;
+            --panel-2: #f9fafb;
+            --muted: #6b7280;
+            --text: #111827;
+            --line: #e5e7eb;
+            --primary: #334155;
+            --primary-soft: #475569;
+            --success: #15803d;
+            --danger: #b91c1c;
+            --warning: #b45309;
+            --info: #0369a1;
+            --shadow: 0 10px 28px rgba(17, 24, 39, .08);
+            --shadow-soft: 0 4px 14px rgba(17, 24, 39, .06);
+            --radius: 18px;
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: Inter, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
             padding: 20px;
             min-height: 100vh;
         }
+
         .container {
-            max-width: 1600px;
+            max-width: 1680px;
             margin: 0 auto;
-            background: white;
-            border-radius: 20px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 24px;
             overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: var(--shadow);
         }
+
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
+            background: #ffffff;
+            color: var(--text);
+            padding: 28px 28px 22px;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
         }
+        .header h1 {
+            font-size: clamp(25px, 3vw, 40px);
+            letter-spacing: -1px;
+            line-height: 1.05;
+            margin-bottom: 10px;
+            color: #0f172a;
+        }
+        .header p {
+            font-size: 14px;
+            color: var(--muted);
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: #f8fafc;
+            border: 1px solid var(--line);
+            padding: 9px 13px;
+            border-radius: 999px;
+        }
+
         .status-bar {
-            background: #f8f9fa;
-            padding: 10px 20px;
+            background: #f9fafb;
+            padding: 12px 22px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #ddd;
-            font-size: 13px;
+            border-bottom: 1px solid var(--line);
+            font-size: 14px;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 12px;
         }
-        .status-online { color: #27ae60; font-weight: bold; }
-        .status-offline { color: #e74c3c; font-weight: bold; }
-        .status-local { color: #f39c12; font-weight: bold; }
-        button { cursor: pointer; padding: 8px 15px; border-radius: 8px; border: none; font-weight: bold; transition: 0.2s; }
-        button:active { transform: scale(0.98); }
+        .status-online, .status-offline, .status-local {
+            font-weight: 900;
+            padding: 5px 10px;
+            border-radius: 999px;
+        }
+        .status-online { color: #166534; background: #dcfce7; }
+        .status-offline { color: #991b1b; background: #fee2e2; }
+        .status-local { color: #854d0e; background: #fef3c7; }
+
+        button {
+            cursor: pointer;
+            padding: 10px 15px;
+            border-radius: 12px;
+            border: 0;
+            font-weight: 800;
+            transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+            box-shadow: var(--shadow-soft);
+            background: var(--primary);
+            color: white;
+        }
+        button:hover { transform: translateY(-1px); filter: brightness(1.04); }
+        button:active { transform: scale(.98); }
+        button:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+
         .registro-area, .nomes-area, .content { padding: 20px; }
-        .registro-box { background: #f8f9fa; padding: 20px; border-radius: 15px; }
-        .row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
-        .input-group { flex: 1; min-width: 150px; }
-        .input-group label { display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px; }
-        .input-group input, .input-group select { width: 100%; padding: 12px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; background: white; }
-        .payment-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
-        .payment-btn { flex: 1; padding: 12px; border: 2px solid #ddd; background: white; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .payment-btn.selected { background: #667eea; color: white; border-color: #667eea; }
-        .payment-btn.dinheiro.selected { background: #27ae60; }
-        .payment-btn.pix.selected { background: #3498db; }
-        .payment-btn.cartao.selected { background: #e74c3c; }
-        .btn-registrar, .btn-cancelar { width: 100%; padding: 12px; margin-bottom: 10px; }
-        .btn-registrar { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
-        .btn-cancelar { background: #e74c3c; color: white; }
-        .contagem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; max-height: 600px; overflow-y: auto; margin-top: 10px; }
-        .card-moto { border: 2px solid #e0e0e0; border-radius: 12px; padding: 15px; cursor: pointer; background: white; }
-        .card-moto.normal { background: linear-gradient(135deg, #667eea10, #764ba210); }
-        .card-moto.repetido { background: #ffd93d60; border-color: #ffd93d; }
-        .card-moto.cancelado { background: #e74c3c40; border-color: #e74c3c; }
-        .card-moto:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .moto-header { text-align: center; border-bottom: 2px solid #ddd; margin-bottom: 10px; padding-bottom: 8px; }
-        .moto-nome { font-size: 18px; font-weight: bold; cursor: pointer; display: inline-block; padding: 4px 12px; border-radius: 8px; background: rgba(102,126,234,0.1); }
-        .moto-qtd { font-size: 28px; font-weight: bold; color: #764ba2; margin: 5px 0; }
-        .detalhe-item { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px dashed #ddd; }
-        .total-item { margin-top: 10px; padding-top: 8px; border-top: 2px solid #667eea; display: flex; justify-content: space-between; font-weight: bold; }
-        .total-box { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
-        .total-valor { font-size: 48px; font-weight: bold; }
-        .resumo-pagamento, .card-lista { background: #f8f9fa; padding: 15px; border-radius: 15px; margin-bottom: 20px; }
-        .pedido-item { background: white; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #667eea; }
-        .pedido-item.cancelado { border-left-color: #e74c3c; background: #fef0f0; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 25px; border-radius: 15px; max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto; }
-        .close-modal { float: right; font-size: 28px; cursor: pointer; }
-        .relatorio-linha { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .registro-area { background: #f9fafb; }
+        .registro-box {
+            background: white;
+            padding: 20px;
+            border-radius: var(--radius);
+            border: 1px solid var(--line);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .row { display: flex; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+        .input-group { flex: 1; min-width: 180px; }
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 900;
+            color: #374151;
+            margin-bottom: 7px;
+            letter-spacing: .2px;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 13px 14px;
+            font-size: 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            background: #f9fafb;
+            color: #111827;
+            outline: none;
+            transition: .18s;
+        }
+        .input-group input:focus, .input-group select:focus {
+            background: white;
+            border-color: #64748b;
+            box-shadow: 0 0 0 4px rgba(100, 116, 139, .14);
+        }
+
+        .payment-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+        .payment-btn {
+            flex: 1;
+            min-width: 145px;
+            padding: 13px;
+            border: 1px solid #d1d5db;
+            background: #ffffff;
+            color: #374151;
+            border-radius: 12px;
+            box-shadow: none;
+        }
+        .payment-btn.selected { color: white; border-color: transparent; transform: translateY(-1px); }
+        .payment-btn.dinheiro.selected { background: #166534; }
+        .payment-btn.pix.selected { background: #334155; }
+        .payment-btn.cartao.selected { background: #1f2937; }
+
+        .btn-registrar, .btn-cancelar { width: 100%; padding: 14px; margin-bottom: 10px; font-size: 15px; }
+        .btn-registrar { background: #334155; }
+        .btn-cancelar { background: #991b1b; }
+
+        .content {
+            display: grid;
+            grid-template-columns: minmax(0, 1.8fr) minmax(340px, .9fr);
+            gap: 20px;
+            align-items: start;
+            background: #f3f4f6;
+        }
+        .contagem-area, .total-box, .resumo-pagamento, .card-lista, .caixa-area {
+            border: 1px solid var(--line);
+            box-shadow: var(--shadow-soft);
+        }
+        .contagem-area {
+            background: white;
+            padding: 18px;
+            border-radius: var(--radius);
+        }
+        .contagem-area h3, .caixa-area h3, .card-lista h4, .resumo-pagamento h4 {
+            color: #111827;
+            letter-spacing: -.2px;
+            margin-bottom: 12px;
+        }
+        .contagem-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+            gap: 10px;
+            max-height: 720px;
+            overflow-y: auto;
+            margin-top: 10px;
+            padding-right: 4px;
+        }
+        .contagem-grid::-webkit-scrollbar { width: 8px; }
+        .contagem-grid::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
+
+        .card-moto {
+            position: relative;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 10px 10px 10px 14px;
+            cursor: pointer;
+            background: white;
+            transition: .18s ease;
+            overflow: hidden;
+        }
+        .card-moto::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 4px;
+            background: #64748b;
+        }
+        .card-moto.normal { background: #ffffff; }
+        .card-moto.repetido { background: #fffbeb; border-color: #f59e0b; }
+        .card-moto.repetido::before { background: #d97706; }
+        .card-moto.cancelado { background: #fef2f2; border-color: #ef4444; }
+        .card-moto.cancelado::before { background: #b91c1c; }
+        .card-moto:hover { transform: translateY(-2px); box-shadow: 0 10px 18px rgba(17, 24, 39, .08); background:#f8fafc; }
+        .moto-header { text-align: left; border-bottom: 1px solid #e5e7eb; margin-bottom: 7px; padding-bottom: 7px; }
+        .moto-nome {
+            font-size: 14px;
+            font-weight: 900;
+            cursor: pointer;
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 999px;
+            color: #1f2937;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+        }
+        .moto-qtd { font-size: 23px; font-weight: 950; color: #111827; margin: 4px 0 0; letter-spacing: -.7px; }
+        .detalhe-item { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; font-size: 11px; color: #6b7280; border-bottom: 1px dashed #d1d5db; }
+        .detalhe-item span:last-child, .total-item span:last-child { font-weight: 900; color: #111827; }
+        .total-item { margin-top: 5px; padding-top: 5px; border-top: 2px solid #64748b; display: flex; justify-content: space-between; font-weight: 950; color: #111827; font-size:12px; }
+
+        .total-box {
+            background: #ffffff;
+            color: #111827;
+            padding: 24px;
+            border-radius: var(--radius);
+            text-align: center;
+            margin-bottom: 18px;
+        }
+        .total-valor { font-size: clamp(44px, 5vw, 68px); font-weight: 950; line-height: 1; letter-spacing: -2px; color:#111827; }
+        .total-money { font-size: 21px; font-weight: 900; margin-top: 8px; color:#374151; }
+        .resumo-pagamento, .card-lista {
+            background: white;
+            padding: 17px;
+            border-radius: var(--radius);
+            margin-bottom: 18px;
+        }
+        .resumo-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+            color: #6b7280;
+        }
+        .resumo-item strong { color: #111827; }
+        .pedido-item {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 14px;
+            margin-bottom: 9px;
+            border-left: 4px solid #64748b;
+            color: #374151;
+        }
+        .pedido-item.cancelado { border-left-color: #b91c1c; background: #fef2f2; }
+        .pedido-item small { color: #6b7280; }
+        .pedido-item button { box-shadow: none; border-radius: 10px; }
+
+        .caixa-area {
+            background: white;
+            padding: 20px;
+            border-radius: var(--radius);
+            margin: 0 20px 20px;
+        }
+        .inline-group { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
+        .retirada-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            padding: 11px;
+            border-radius: 14px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+        }
+        .btn-remover { background: #991b1b; padding: 7px 12px; font-size: 12px; }
+        .btn-add { background: #166534; margin-top: 5px; width: auto; padding: 12px 20px; }
+        .btn-relatorio { background: #44403c; width: 100%; margin-top: 15px; }
+        .btn-whatsapp { background: #166534; width: 100%; margin-top: 10px; }
+        .btn-novo-expediente { background: #334155; margin-top: 10px; width: 100%; }
+        .btn-verificar { background: #1f2937; margin-top: 10px; width: 100%; }
+        .diferenca-alerta { background: #991b1b; color: white; padding: 13px; border-radius: 14px; margin-top: 10px; text-align: center; font-weight: 900; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(17, 24, 39, .68);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 18px;
+            backdrop-filter: blur(7px);
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 22px;
+            max-width: 850px;
+            width: 92%;
+            max-height: 84vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 70px rgba(0,0,0,.22);
+        }
+        .close-modal { float: right; font-size: 30px; cursor: pointer; color: #6b7280; }
+        .relatorio-linha { display: block; padding: 10px 0; border-bottom: 1px solid #e5e7eb; color: #374151; }
         .relatorio-total { font-weight: bold; font-size: 1.2em; border-top: 2px solid #333; margin-top: 10px; padding-top: 10px; }
-        .caixa-area { background: #f0f2f5; padding: 20px; border-radius: 15px; margin-top: 20px; margin-bottom: 20px; }
-        .inline-group { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 15px; }
-        .retirada-item { background: white; padding: 10px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .btn-remover { background: #e74c3c; color: white; padding: 4px 10px; font-size: 12px; }
-        .btn-add { background: #27ae60; color: white; margin-top: 5px; width: auto; padding: 8px 20px; }
-        .btn-relatorio { background: #f39c12; color: white; width: 100%; margin-top: 15px; }
-        .btn-whatsapp { background: #25D366; color: white; width: 100%; margin-top: 10px; }
-        .btn-novo-expediente { background: #3498db; color: white; margin-top: 10px; width: 100%; }
-        .btn-verificar { background: #9b59b6; color: white; margin-top: 10px; width: 100%; }
-        .diferenca-alerta { background: #e74c3c; color: white; padding: 10px; border-radius: 8px; margin-top: 10px; text-align: center; }
-        @media (max-width: 768px) { .contagem-grid { grid-template-columns: 1fr; } }
-    </style>
+
+        @media (min-width: 1200px) {
+            .contagem-grid { grid-template-columns: repeat(5, 1fr); }
+        }
+        @media (max-width: 1100px) {
+            body { padding: 12px; }
+            .content { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            .container { border-radius: 20px; }
+            .header { padding: 24px 18px; }
+            .status-bar, .registro-area, .content, .caixa-area { padding: 16px; }
+            .caixa-area { margin: 0 16px 16px; }
+            .contagem-grid { grid-template-columns: 1fr; max-height: none; }
+            .payment-btn { min-width: 100%; }
+            .row, .inline-group { gap: 10px; }
+            .input-group { min-width: 100%; }
+            .total-box { text-align: left; }
+            button { width: 100%; }
+            .pedido-item button { width: auto; }
+        }
+</style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <h1>🚀 Sistema de Entregas + Caixa</h1>
-        <p>🟡 Amarelo = pedido repetido | 🔴 Vermelho = cancelado</p>
+        <h1>🚀 Sistema de Entregas Heimer</h1>
+        <p>🟡 Pedido repetido &nbsp;|&nbsp; 🔴 Pedido cancelado &nbsp;|&nbsp; 💰 Caixa em tempo real</p>
     </div>
     <div class="status-bar">
         <span>💾 Status: <span id="statusText">Conectando...</span></span>
-        <div><button id="btnSync" style="background:#3498db;">🔄 Sincronizar</button>
-        <button id="btnLimpar" style="background:#e74c3c;">🗑️ Limpar tudo</button></div>
+        <div><button id="btnSync" style="background:#334155;">🔄 Sincronizar</button>
+        <button id="btnLimpar" style="background:#991b1b;">🗑️ Limpar tudo</button></div>
     </div>
 
     <div class="registro-area">
@@ -141,12 +398,12 @@
         <h3>💰 Controle de Caixa</h3>
         <div class="inline-group">
             <div class="input-group"><label>Valor inicial do caixa (R$)</label><input type="text" id="valorInicialCaixa" placeholder="Ex: 200,00"></div>
-            <button id="btnSalvarInicial" style="background:#3498db;">Salvar</button>
+            <button id="btnSalvarInicial" style="background:#334155;">Salvar</button>
         </div>
         <div class="inline-group">
             <div class="input-group"><label>📊 Quantos motoqueiros estão rodando hoje?</label>
                 <input type="number" id="qtdeMotoqueiros" min="1" max="15" value="15" style="width:100px;">
-                <button id="btnAtualizarMotoqueiros" style="background:#27ae60;">Atualizar Cards</button>
+                <button id="btnAtualizarMotoqueiros" style="background:#166534;">Atualizar Cards</button>
             </div>
         </div>
         <h4>📤 Retiradas (valores retirados do caixa)</h4>
@@ -172,7 +429,7 @@
 
 <!-- Modais -->
 <div id="relatorioModal" class="modal"><div class="modal-content"><span class="close-modal" onclick="fecharModal('relatorioModal')">&times;</span><h3>📋 Relatório de Expediente</h3><div id="relatorioConteudo"></div><button onclick="fecharModal('relatorioModal')">Fechar</button></div></div>
-<div id="cancelModal" class="modal"><div class="modal-content"><span class="close-modal" onclick="fecharModal('cancelModal')">&times;</span><h3>❌ Cancelar Pedido</h3><div class="input-group"><label>Número</label><input type="text" id="cancelNumero"></div><div class="input-group"><label>Motivo</label><select id="cancelMotivo"><option>Cliente cancelou</option><option>Restaurante cancelou</option><option>Motoqueiro não conseguiu</option><option>Outro</option></select></div><div class="input-group"><label>Motoqueiro (opcional)</label><input type="number" id="cancelMotoqueiro" min="1" max="15"></div><div style="display:flex; gap:10px; margin-top:20px;"><button id="confirmCancel" style="background:#e74c3c;">Confirmar</button><button onclick="fecharModal('cancelModal')">Fechar</button></div></div></div>
+<div id="cancelModal" class="modal"><div class="modal-content"><span class="close-modal" onclick="fecharModal('cancelModal')">&times;</span><h3>❌ Cancelar Pedido</h3><div class="input-group"><label>Número</label><input type="text" id="cancelNumero"></div><div class="input-group"><label>Motivo</label><select id="cancelMotivo"><option>Cliente cancelou</option><option>Restaurante cancelou</option><option>Motoqueiro não conseguiu</option><option>Outro</option></select></div><div class="input-group"><label>Motoqueiro (opcional)</label><input type="number" id="cancelMotoqueiro" min="1" max="15"></div><div style="display:flex; gap:10px; margin-top:20px;"><button id="confirmCancel" style="background:#991b1b;">Confirmar</button><button onclick="fecharModal('cancelModal')">Fechar</button></div></div></div>
 <div id="relatorioPedidoModal" class="modal"><div class="modal-content" style="max-width:700px;"><span class="close-modal" onclick="fecharModal('relatorioPedidoModal')">&times;</span><h3 id="modalTitulo">Relatório do Motoqueiro</h3><div id="relatorioPedidoConteudo"></div><button onclick="fecharModal('relatorioPedidoModal')">Fechar</button></div></div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -591,7 +848,7 @@
             <div class="resumo-item"><span>📱 PIX</span><strong>${formatarMoeda(totalPix)}</strong></div>
             <div class="resumo-item"><span>💳 CARTÃO</span><strong>${formatarMoeda(totalCart)}</strong></div>
             <div class="resumo-item"><span>🌐 ONLINE</span><strong>${formatarMoeda(totalOn)}</strong></div>
-            <div class="resumo-item" style="border-top:2px solid #667eea;"><strong>TOTAL GERAL</strong><strong>${formatarMoeda(totalDin+totalPix+totalCart+totalOn)}</strong></div>
+            <div class="resumo-item" style="border-top:2px solid #64748b;"><strong>TOTAL GERAL</strong><strong>${formatarMoeda(totalDin+totalPix+totalCart+totalOn)}</strong></div>
         `;
     }
     
