@@ -315,6 +315,29 @@
         .btn-whatsapp { background: #166534; width: 100%; margin-top: 10px; }
         .btn-novo-expediente { background: #334155; margin-top: 10px; width: 100%; }
         .btn-verificar { background: #1f2937; margin-top: 10px; width: 100%; }
+        .ajuste-card {
+            margin-top: 8px;
+            padding: 8px;
+            border-radius: 12px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            font-size: 11px;
+        }
+        .ajuste-card strong { color: #111827; }
+        .ajuste-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .ajuste-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 12px;
+            margin: 12px 0;
+        }
+
         .diferenca-alerta { background: #991b1b; color: white; padding: 13px; border-radius: 14px; margin-top: 10px; text-align: center; font-weight: 900; }
 
         .modal {
@@ -390,7 +413,7 @@
             </div>
             <div class="payment-buttons">
                 <button class="payment-btn dinheiro" data-payment="dinheiro" disabled>💵 DINHEIRO</button>
-                <button class="payment-btn pix" data-payment="pix" disabled>📱 PIX</button>
+                <button class="payment-btn pix" data-payment="pix" disabled>📱 PIX DAVI</button>
                 <button class="payment-btn cartao" data-payment="cartao" disabled>💳 CARTÃO</button>
             </div>
             <button class="btn-registrar" id="registrarBtn">✅ REGISTRAR ENTREGA (Enter) 🔊</button>
@@ -493,6 +516,7 @@
     // Estado
     let contagem = Array(15).fill(0);
     let valoresPorTipo = Array(15).fill().map(() => ({ dinheiro:0, pix:0, cartao:0, online:0 }));
+    let ajustesMotoqueiros = criarAjustesPadrao();
     let nomesMotoqueiros = Array(15).fill().map((_,i)=>`Moto ${i+1}`);
     let todosPedidos = [];
     let pagamentoSelecionado = null;
@@ -510,9 +534,41 @@
     }
     
     function formatarMoeda(v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+    function criarAjustesPadrao() {
+        return Array(15).fill().map(() => ({
+            retiradaCaixa: 0,
+            pixMoto: 0,
+            bebidas: { suco: 0, lata: 0, litro: 0, valor: 0 }
+        }));
+    }
+
+    function normalizarAjustes(lista) {
+        const padrao = criarAjustesPadrao();
+        if (!Array.isArray(lista)) return padrao;
+        for (let i = 0; i < 15; i++) {
+            const item = lista[i] || {};
+            padrao[i] = {
+                retiradaCaixa: parseFloat(item.retiradaCaixa) || 0,
+                pixMoto: parseFloat(item.pixMoto) || 0,
+                bebidas: {
+                    suco: parseInt(item.bebidas?.suco) || 0,
+                    lata: parseInt(item.bebidas?.lata) || 0,
+                    litro: parseInt(item.bebidas?.litro) || 0,
+                    valor: parseFloat(item.bebidas?.valor) || 0
+                }
+            };
+        }
+        return padrao;
+    }
+
+    function totalAjustesMoto(idx) {
+        const a = ajustesMotoqueiros[idx] || criarAjustesPadrao()[0];
+        return (a.retiradaCaixa || 0) + (a.pixMoto || 0) + ((a.bebidas && a.bebidas.valor) || 0);
+    }
+
     
     function salvarLocal() {
-        const backup = { contagem, valoresPorTipo, nomesMotoqueiros, todosPedidos, valorInicialCaixa, retiradas, qtdeMotoqueirosAtivos };
+        const backup = { contagem, valoresPorTipo, ajustesMotoqueiros, nomesMotoqueiros, todosPedidos, valorInicialCaixa, retiradas, qtdeMotoqueirosAtivos };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(backup));
     }
     
@@ -523,6 +579,7 @@
                 const obj = JSON.parse(dados);
                 contagem = obj.contagem || Array(15).fill(0);
                 valoresPorTipo = obj.valoresPorTipo || Array(15).fill().map(()=>({dinheiro:0,pix:0,cartao:0,online:0}));
+                ajustesMotoqueiros = normalizarAjustes(obj.ajustesMotoqueiros);
                 nomesMotoqueiros = obj.nomesMotoqueiros || Array(15).fill().map((_,i)=>`Moto ${i+1}`);
                 todosPedidos = obj.todosPedidos || [];
                 valorInicialCaixa = obj.valorInicialCaixa || 0;
@@ -536,7 +593,7 @@
     
     function salvarFirebase() {
         if(!firebaseConnected) return;
-        db.ref('deliveryData').set({ contagem, valoresPorTipo, nomesMotoqueiros, todosPedidos, valorInicialCaixa, retiradas, qtdeMotoqueirosAtivos, ultimaAtualizacao: Date.now() }).catch(e=>console.warn);
+        db.ref('deliveryData').set({ contagem, valoresPorTipo, ajustesMotoqueiros, nomesMotoqueiros, todosPedidos, valorInicialCaixa, retiradas, qtdeMotoqueirosAtivos, ultimaAtualizacao: Date.now() }).catch(e=>console.warn);
     }
     
     function carregarFirebase() {
@@ -546,6 +603,7 @@
                 const data = snap.val();
                 contagem = data.contagem || Array(15).fill(0);
                 valoresPorTipo = data.valoresPorTipo || Array(15).fill().map(()=>({dinheiro:0,pix:0,cartao:0,online:0}));
+                ajustesMotoqueiros = normalizarAjustes(data.ajustesMotoqueiros);
                 nomesMotoqueiros = data.nomesMotoqueiros || Array(15).fill().map((_,i)=>`Moto ${i+1}`);
                 todosPedidos = data.todosPedidos || [];
                 valorInicialCaixa = data.valorInicialCaixa || 0;
@@ -580,7 +638,7 @@
             // Existe pelo menos um pedido ativo
             const motosInfo = ativos.map(p => {
                 const valorStr = formatarMoeda(p.valor);
-                const pagStr = p.pagamento ? p.pagamento.toUpperCase() : 'ONLINE';
+                const pagStr = p.pagamento === 'pix' ? 'PIX DAVI' : (p.pagamento === 'dinheiro' ? 'DINHEIRO' : (p.pagamento === 'cartao' ? 'CARTÃO' : 'SEM VALOR'));
                 return `${p.motoqueiroNome} (${valorStr} - ${pagStr})`;
             }).join('; ');
             if (ativos.length === 1) {
@@ -689,6 +747,8 @@
             const valores = valoresPorTipo[i];
             const totalMoto = valores.dinheiro + valores.pix + valores.cartao + valores.online;
             const retiradasMoto = obterRetiradasPorMotoqueiro(nome);
+            const ajusteMoto = ajustesMotoqueiros[i] || criarAjustesPadrao()[0];
+            const totalDescontosMoto = totalAjustesMoto(i);
             
             let linha = `👤 *${nome}* - ${entregas} entrega(s)`;
             if (!paraWhatsApp) linha = `<div class='relatorio-linha'><strong>👤 ${nome}</strong> - ${entregas} entrega(s)`;
@@ -697,13 +757,19 @@
             if (totalMoto > 0) {
                 let detalhes = [];
                 if (valores.dinheiro > 0) detalhes.push(`💵 Dinheiro: ${formatarMoeda(valores.dinheiro)}`);
-                if (valores.pix > 0) detalhes.push(`📱 Pix: ${formatarMoeda(valores.pix)}`);
+                if (valores.pix > 0) detalhes.push(`📱 Pix Davi: ${formatarMoeda(valores.pix)}`);
                 if (valores.cartao > 0) detalhes.push(`💳 Cartão: ${formatarMoeda(valores.cartao)}`);
-                if (valores.online > 0) detalhes.push(`🌐 Online: ${formatarMoeda(valores.online)}`);
+
                 if (detalhes.length) {
                     if (!paraWhatsApp) linha += `<br><span style="font-size:12px; margin-left:20px;">${detalhes.join(' | ')}</span>`;
                     else linha += `\n   ${detalhes.join(' | ')}`;
                 }
+            }
+            if (totalDescontosMoto > 0) {
+                const b = ajusteMoto.bebidas || {suco:0,lata:0,litro:0,valor:0};
+                if (!paraWhatsApp) linha += `<br><span style="font-size:12px; color:#7c2d12; margin-left:20px;">💸 Acertos/descontos: ${formatarMoeda(totalDescontosMoto)} | Caixa: ${formatarMoeda(ajusteMoto.retiradaCaixa || 0)} | Pix p/ moto: ${formatarMoeda(ajusteMoto.pixMoto || 0)} | Bebidas: ${formatarMoeda(b.valor || 0)} (${b.suco||0} suco/${b.lata||0} lata/${b.litro||0} 1L)</span>`;
+                else linha += `
+   💸 *Acertos/descontos:* ${formatarMoeda(totalDescontosMoto)} | Caixa: ${formatarMoeda(ajusteMoto.retiradaCaixa || 0)} | Pix p/ moto: ${formatarMoeda(ajusteMoto.pixMoto || 0)} | Bebidas: ${formatarMoeda(b.valor || 0)} (${b.suco||0} suco/${b.lata||0} lata/${b.litro||0} 1L)`;
             }
             if (retiradasMoto > 0) {
                 if (!paraWhatsApp) linha += `<br><span style="font-size:12px; color:#e74c3c; margin-left:20px;">📤 Retirada(s): ${formatarMoeda(retiradasMoto)}</span>`;
@@ -730,9 +796,8 @@
         linhas.push(`📦 *Pedidos concluídos:* ${totalConcluidos}`);
         linhas.push(`❌ *Pedidos cancelados:* ${totalCancelados}`);
         linhas.push(`💵 *Total DINHEIRO:* ${formatarMoeda(totalDinheiro)}`);
-        linhas.push(`📱 *Total PIX:* ${formatarMoeda(totalPix)}`);
+        linhas.push(`📱 *Total PIX DAVI:* ${formatarMoeda(totalPix)}`);
         linhas.push(`💳 *Total CARTÃO:* ${formatarMoeda(totalCartao)}`);
-        linhas.push(`🌐 *Total ONLINE:* ${formatarMoeda(totalOnline)}`);
         linhas.push(`💰 *Valor inicial caixa:* ${formatarMoeda(valorInicialCaixa)}`);
         linhas.push(`📤 *Total retiradas:* ${formatarMoeda(totalRetiradas)}`);
         linhas.push(`💵 *Dinheiro final (calculado):* ${formatarMoeda(dinheiroCalculado)}`);
@@ -815,7 +880,9 @@
         grid.innerHTML = '';
         const maxMotos = Math.min(15, qtdeMotoqueirosAtivos);
         for(let i=0;i<maxMotos;i++) {
-            const totalValor = valoresPorTipo[i].dinheiro+valoresPorTipo[i].pix+valoresPorTipo[i].cartao+valoresPorTipo[i].online;
+            const totalValor = valoresPorTipo[i].dinheiro+valoresPorTipo[i].pix+valoresPorTipo[i].cartao;
+            const ajuste = ajustesMotoqueiros[i] || criarAjustesPadrao()[0];
+            const totalDescontos = totalAjustesMoto(i);
             const status = motoqueiroTemProblema(i+1);
             let classe = 'card-moto normal';
             if(status === 'cancelado') classe = 'card-moto cancelado';
@@ -838,10 +905,14 @@
             detalhes.className = 'detalhes-pagamento';
             detalhes.innerHTML = `
                 <div class="detalhe-item"><span>💵 Dinheiro</span><span>${formatarMoeda(valoresPorTipo[i].dinheiro)}</span></div>
-                <div class="detalhe-item"><span>📱 Pix</span><span>${formatarMoeda(valoresPorTipo[i].pix)}</span></div>
+                <div class="detalhe-item"><span>📱 Pix Davi</span><span>${formatarMoeda(valoresPorTipo[i].pix)}</span></div>
                 <div class="detalhe-item"><span>💳 Cartão</span><span>${formatarMoeda(valoresPorTipo[i].cartao)}</span></div>
-                <div class="detalhe-item"><span>🌐 Online</span><span>${formatarMoeda(valoresPorTipo[i].online)}</span></div>
-                <div class="total-item"><span>TOTAL</span><span>${formatarMoeda(totalValor)}</span></div>
+                <div class="detalhe-item"><span>💸 Pegou do caixa</span><span>${formatarMoeda(ajuste.retiradaCaixa || 0)}</span></div>
+                <div class="detalhe-item"><span>📲 Dinheiro em Pix p/ moto</span><span>${formatarMoeda(ajuste.pixMoto || 0)}</span></div>
+                <div class="detalhe-item"><span>🥤 Bebidas</span><span>${formatarMoeda((ajuste.bebidas && ajuste.bebidas.valor) || 0)}</span></div>
+                <div class="detalhe-item"><span>Suco/Lata/1L</span><span>${(ajuste.bebidas && ajuste.bebidas.suco) || 0}/${(ajuste.bebidas && ajuste.bebidas.lata) || 0}/${(ajuste.bebidas && ajuste.bebidas.litro) || 0}</span></div>
+                <div class="total-item"><span>VENDAS</span><span>${formatarMoeda(totalValor)}</span></div>
+                <div class="total-item"><span>DESCONTOS/ACERTO</span><span>${formatarMoeda(totalDescontos)}</span></div>
             `;
             card.appendChild(header);
             card.appendChild(detalhes);
@@ -886,7 +957,7 @@
         if(!ativos.length) { container.innerHTML = '<div style="text-align:center;">Nenhum pedido ativo</div>'; return; }
         container.innerHTML = ativos.map(p => `
             <div class="pedido-item">
-                <div><strong>📦 ${p.pedido}</strong> ${p.pagamento==='dinheiro'?'💵':p.pagamento==='pix'?'📱':p.pagamento==='cartao'?'💳':'🌐'} ${formatarMoeda(p.valor)}
+                <div><strong>📦 ${p.pedido}</strong> ${p.pagamento==='dinheiro'?'💵':p.pagamento==='pix'?'📱 PIX DAVI':p.pagamento==='cartao'?'💳':'—'} ${formatarMoeda(p.valor)}
                     <button onclick="cancelarExistente('${p.pedido}')" style="float:right; background:#e74c3c; color:white; padding:2px 8px;">❌</button>
                     <button onclick="excluirPedido('${p.id}')" style="float:right; background:#95a5a6; color:white; padding:2px 8px; margin-right:5px;">🗑️</button>
                 </div>
@@ -902,7 +973,7 @@
         if(!cancelados.length) { container.innerHTML = '<div style="text-align:center;">Nenhum cancelado</div>'; return; }
         container.innerHTML = cancelados.map(p => `
             <div class="pedido-item cancelado">
-                <div><strong>📦 ${p.pedido}</strong> ${p.pagamento==='dinheiro'?'💵':p.pagamento==='pix'?'📱':p.pagamento==='cartao'?'💳':'🌐'} ${formatarMoeda(p.valor)}</div>
+                <div><strong>📦 ${p.pedido}</strong> ${p.pagamento==='dinheiro'?'💵':p.pagamento==='pix'?'📱 PIX DAVI':p.pagamento==='cartao'?'💳':'—'} ${formatarMoeda(p.valor)}</div>
                 <div>🏍️ ${p.motoqueiroNome || 'N/A'}</div>
                 <div>❌ ${p.motivoCancelamento || 'Cancelado'}</div>
                 <div><small>${p.dataCancelamento || p.dataHora}</small></div>
@@ -920,17 +991,16 @@
         }
         document.getElementById('resumoPagamento').innerHTML = `
             <div class="resumo-item"><span>💵 DINHEIRO</span><strong>${formatarMoeda(totalDin)}</strong></div>
-            <div class="resumo-item"><span>📱 PIX</span><strong>${formatarMoeda(totalPix)}</strong></div>
+            <div class="resumo-item"><span>📱 PIX DAVI</span><strong>${formatarMoeda(totalPix)}</strong></div>
             <div class="resumo-item"><span>💳 CARTÃO</span><strong>${formatarMoeda(totalCart)}</strong></div>
-            <div class="resumo-item"><span>🌐 ONLINE</span><strong>${formatarMoeda(totalOn)}</strong></div>
-            <div class="resumo-item" style="border-top:2px solid #64748b;"><strong>TOTAL GERAL</strong><strong>${formatarMoeda(totalDin+totalPix+totalCart+totalOn)}</strong></div>
+            <div class="resumo-item" style="border-top:2px solid #64748b;"><strong>TOTAL GERAL</strong><strong>${formatarMoeda(totalDin+totalPix+totalCart)}</strong></div>
         `;
     }
     
     function atualizarTotais() {
         const totalPed = contagem.reduce((a,b)=>a+b,0);
         let totalMoney = 0;
-        for(let i=0;i<15;i++) totalMoney += valoresPorTipo[i].dinheiro+valoresPorTipo[i].pix+valoresPorTipo[i].cartao+valoresPorTipo[i].online;
+        for(let i=0;i<15;i++) totalMoney += valoresPorTipo[i].dinheiro+valoresPorTipo[i].pix+valoresPorTipo[i].cartao;
         document.getElementById('totalPedidos').innerText = totalPed;
         document.getElementById('totalMoney').innerText = formatarMoeda(totalMoney);
     }
@@ -1125,17 +1195,55 @@
     function abrirRelatorioPedido(motoNum) {
         const idx = motoNum-1;
         const pedidos = todosPedidos.filter(p=>p.motoqueiro===motoNum && !p.cancelado);
-        const totalValor = valoresPorTipo[idx].dinheiro+valoresPorTipo[idx].pix+valoresPorTipo[idx].cartao+valoresPorTipo[idx].online;
+        const totalValor = valoresPorTipo[idx].dinheiro+valoresPorTipo[idx].pix+valoresPorTipo[idx].cartao;
+        const ajuste = ajustesMotoqueiros[idx] || criarAjustesPadrao()[0];
+        const totalDescontos = totalAjustesMoto(idx);
         let html = `<h3>${nomesMotoqueiros[idx]}</h3>`;
-        html += `<p><strong>Total entregas:</strong> ${contagem[idx]}<br><strong>Valor total:</strong> ${formatarMoeda(totalValor)}</p>`;
+        html += `<p><strong>Total entregas:</strong> ${contagem[idx]}<br><strong>Vendas com valor:</strong> ${formatarMoeda(totalValor)}<br><strong>Descontos/acerto:</strong> ${formatarMoeda(totalDescontos)}</p>`;
+        html += `
+            <div class="ajuste-box">
+                <h4>💸 Acertos do Motoqueiro</h4>
+                <div class="ajuste-form-grid">
+                    <div class="input-group"><label>Pegou dinheiro do caixa (R$)</label><input type="text" id="ajusteRetiradaCaixa" value="${(ajuste.retiradaCaixa || 0).toLocaleString('pt-BR', {minimumFractionDigits:2})}"></div>
+                    <div class="input-group"><label>Pedido dinheiro recebido em Pix pelo moto (R$)</label><input type="text" id="ajustePixMoto" value="${(ajuste.pixMoto || 0).toLocaleString('pt-BR', {minimumFractionDigits:2})}"></div>
+                    <div class="input-group"><label>Qtd Suco</label><input type="number" id="bebidaSuco" min="0" value="${(ajuste.bebidas && ajuste.bebidas.suco) || 0}"></div>
+                    <div class="input-group"><label>Qtd Lata</label><input type="number" id="bebidaLata" min="0" value="${(ajuste.bebidas && ajuste.bebidas.lata) || 0}"></div>
+                    <div class="input-group"><label>Qtd 1 Litro</label><input type="number" id="bebidaLitro" min="0" value="${(ajuste.bebidas && ajuste.bebidas.litro) || 0}"></div>
+                    <div class="input-group"><label>Total bebidas a descontar (R$)</label><input type="text" id="bebidaValor" value="${((ajuste.bebidas && ajuste.bebidas.valor) || 0).toLocaleString('pt-BR', {minimumFractionDigits:2})}"></div>
+                </div>
+                <button onclick="salvarAjusteMotoqueiro(${motoNum})" style="background:#166534; margin-top:12px;">Salvar acerto deste motoqueiro</button>
+            </div>`;
         html += `<h4>Pedidos:</h4><ul>`;
-        pedidos.forEach(p=>{ html += `<li>📦 ${p.pedido} - ${formatarMoeda(p.valor)} - ${p.pagamento.toUpperCase()} (${p.dataHora})</li>`; });
+        pedidos.forEach(p=>{
+            const pagNome = p.pagamento === 'pix' ? 'PIX DAVI' : (p.pagamento === 'dinheiro' ? 'DINHEIRO' : (p.pagamento === 'cartao' ? 'CARTÃO' : 'SEM VALOR'));
+            html += `<li>📦 ${p.pedido} - ${formatarMoeda(p.valor)} - ${pagNome} (${p.dataHora})</li>`;
+        });
         html += `</ul>`;
         document.getElementById('relatorioPedidoConteudo').innerHTML = html;
         document.getElementById('modalTitulo').innerHTML = `Relatório - ${nomesMotoqueiros[idx]}`;
         document.getElementById('relatorioPedidoModal').style.display = 'flex';
     }
-    
+
+    function salvarAjusteMotoqueiro(motoNum) {
+        const idx = motoNum - 1;
+        ajustesMotoqueiros[idx] = {
+            retiradaCaixa: parseValor(document.getElementById('ajusteRetiradaCaixa').value),
+            pixMoto: parseValor(document.getElementById('ajustePixMoto').value),
+            bebidas: {
+                suco: parseInt(document.getElementById('bebidaSuco').value) || 0,
+                lata: parseInt(document.getElementById('bebidaLata').value) || 0,
+                litro: parseInt(document.getElementById('bebidaLitro').value) || 0,
+                valor: parseValor(document.getElementById('bebidaValor').value)
+            }
+        };
+        salvarLocal();
+        salvarFirebase();
+        atualizarInterfaceCompleta();
+        abrirRelatorioPedido(motoNum);
+        alert('✅ Acerto do motoqueiro salvo.');
+        document.getElementById('pedidoInput').focus();
+    }
+
     function fecharModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
     
     function atualizarBotoesPagamento() {
@@ -1175,6 +1283,7 @@
         if(confirm('APAGAR TODOS os dados? Isso não pode ser desfeito.')) {
             contagem = Array(15).fill(0);
             valoresPorTipo = Array(15).fill().map(()=>({dinheiro:0,pix:0,cartao:0,online:0}));
+            ajustesMotoqueiros = criarAjustesPadrao();
             nomesMotoqueiros = Array(15).fill().map((_,i)=>`Moto ${i+1}`);
             todosPedidos = [];
             valorInicialCaixa = 0;
@@ -1223,9 +1332,11 @@
     window.excluirPedido = excluirPedido;
     window.cancelarExistente = cancelarExistente;
     window.removerRetirada = removerRetirada;
+    window.salvarAjusteMotoqueiro = salvarAjusteMotoqueiro;
     
     carregarFirebase();
     atualizarBotoesPagamento();
+    setTimeout(() => document.getElementById('pedidoInput').focus(), 300);
     window.addEventListener('DOMContentLoaded', focarNumeroPedido);
     window.addEventListener('load', focarNumeroPedido);
 </script>
