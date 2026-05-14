@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Sistema de Entregas - Caixa + WhatsApp</title>
+    <title>Sistema de Entregas - Busca por Pedido</title>
     <style>
         :root {
             --bg: #f3f4f6;
@@ -160,6 +160,25 @@
         .btn-registrar, .btn-cancelar { width: 100%; padding: 14px; margin-bottom: 10px; font-size: 15px; }
         .btn-registrar { background: #334155; }
         .btn-cancelar { background: #991b1b; }
+
+        .busca-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            margin: 15px 0 10px;
+        }
+        .busca-container .input-group { margin-bottom: 0; }
+        .btn-buscar { background: #0f172a; white-space: nowrap; height: 50px; }
+        .resultado-busca {
+            background: #f1f5f9;
+            border-left: 5px solid #334155;
+            padding: 12px;
+            border-radius: 12px;
+            margin-top: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #0f172a;
+        }
 
         .content {
             display: grid;
@@ -345,14 +364,16 @@
             .total-box { text-align: left; }
             button { width: 100%; }
             .pedido-item button { width: auto; }
+            .busca-container { flex-direction: column; align-items: stretch; }
+            .btn-buscar { width: 100%; }
         }
 </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <h1>🚀 Sistema de Entregas Heimer</h1>
-        <p>🟡 Pedido repetido &nbsp;|&nbsp; 🔴 Pedido cancelado &nbsp;|&nbsp; 💰 Caixa em tempo real</p>
+        <h1>🚀 Sistema de Entregas</h1>
+        <p>🔎 Busque um pedido e saiba com qual motoqueiro está | 🟡 Repetido | 🔴 Cancelado | 💰 Caixa em tempo real</p>
     </div>
     <div class="status-bar">
         <span>💾 Status: <span id="statusText">Conectando...</span></span>
@@ -374,6 +395,16 @@
             </div>
             <button class="btn-registrar" id="registrarBtn">✅ REGISTRAR ENTREGA (Enter) 🔊</button>
             <button class="btn-cancelar" id="cancelarPedidoBtn">❌ CANCELAR PEDIDO (direto)</button>
+            
+            <!-- NOVA ÁREA DE BUSCA POR PEDIDO -->
+            <div class="busca-container">
+                <div class="input-group" style="flex: 2;">
+                    <label>🔎 Buscar Pedido (número)</label>
+                    <input type="text" id="buscaPedidoInput" placeholder="Digite o número do pedido">
+                </div>
+                <button id="btnBuscarPedido" class="btn-buscar">🔍 Buscar</button>
+            </div>
+            <div id="resultadoBusca" class="resultado-busca" style="display: none;"></div>
         </div>
     </div>
 
@@ -472,8 +503,8 @@
     
     function parseValor(str) {
         if (!str) return 0;
-        let s = str.toString().trim().replace(/\./g, ','); // ponto -> vírgula
-        s = s.replace(',', '.'); // última vírgula vira ponto
+        let s = str.toString().trim().replace(/\./g, ',');
+        s = s.replace(',', '.');
         let v = parseFloat(s);
         return isNaN(v) ? 0 : v;
     }
@@ -531,6 +562,52 @@
         }).catch(err=>{ carregarLocal(); atualizarInterfaceCompleta(); });
     }
     
+    // --- FUNÇÃO DE BUSCA POR PEDIDO (retorna motoqueiro) ---
+    function buscarPedido() {
+        const numero = document.getElementById('buscaPedidoInput').value.trim();
+        if (!numero) {
+            document.getElementById('resultadoBusca').style.display = 'none';
+            return;
+        }
+        // Filtrar pedidos ativos (não cancelados) com esse número
+        const ativos = todosPedidos.filter(p => p.pedido === numero && !p.cancelado);
+        const cancelados = todosPedidos.filter(p => p.pedido === numero && p.cancelado === true);
+        
+        let mensagem = '';
+        let tipo = '';
+        
+        if (ativos.length > 0) {
+            // Existe pelo menos um pedido ativo
+            const motosInfo = ativos.map(p => {
+                const valorStr = formatarMoeda(p.valor);
+                const pagStr = p.pagamento ? p.pagamento.toUpperCase() : 'ONLINE';
+                return `${p.motoqueiroNome} (${valorStr} - ${pagStr})`;
+            }).join('; ');
+            if (ativos.length === 1) {
+                mensagem = `✅ Pedido ${numero} está com: ${motosInfo}`;
+            } else {
+                mensagem = `⚠️ Pedido ${numero} está com MÚLTIPLOS motoqueiros: ${motosInfo}`;
+            }
+            tipo = 'success';
+        } else if (cancelados.length > 0) {
+            // Pedido cancelado
+            const primeiroCancelado = cancelados[0];
+            const motivo = primeiroCancelado.motivoCancelamento || 'Não informado';
+            const motoNome = primeiroCancelado.motoqueiroNome || 'Não atribuído';
+            mensagem = `❌ Pedido ${numero} foi CANCELADO. Motivo: ${motivo}. Estava com: ${motoNome}.`;
+            tipo = 'danger';
+        } else {
+            mensagem = `❓ Pedido ${numero} não encontrado no sistema.`;
+            tipo = 'warning';
+        }
+        
+        const resultDiv = document.getElementById('resultadoBusca');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = mensagem;
+        resultDiv.style.backgroundColor = tipo === 'success' ? '#e0f2e7' : (tipo === 'danger' ? '#fee2e2' : '#fff3cd');
+        resultDiv.style.borderLeftColor = tipo === 'success' ? '#15803d' : (tipo === 'danger' ? '#b91c1c' : '#b45309');
+    }
+    
     function obterPedidosDuplicados() {
         const ativos = todosPedidos.filter(p => !p.cancelado);
         const count = {};
@@ -585,7 +662,6 @@
         return valorInicialCaixa + totalDinheiroPedidos - totalRetiradas;
     }
     
-    // Função para obter retiradas associadas a um motoqueiro (pela descrição)
     function obterRetiradasPorMotoqueiro(nomeMoto) {
         const nomeLower = nomeMoto.toLowerCase();
         let total = 0;
@@ -597,7 +673,6 @@
         return total;
     }
     
-    // Gera relatório detalhado com quebra por motoqueiro e retiradas associadas
     function gerarRelatorioTexto(paraWhatsApp = false) {
         let linhas = [];
         if (!paraWhatsApp) linhas.push("<div class='relatorio-linha'><strong>📊 RELATÓRIO DE EXPEDIENTE</strong></div><div style='margin:10px 0'></div>");
@@ -606,7 +681,6 @@
         let totalConcluidos = 0;
         let totalCancelados = todosPedidos.filter(p=>p.cancelado).length;
         
-        // Dados por motoqueiro
         for (let i = 0; i < qtdeMotoqueirosAtivos; i++) {
             const nome = nomesMotoqueiros[i];
             const entregas = contagem[i];
@@ -639,7 +713,6 @@
             linhas.push(linha);
         }
         
-        // Totais gerais
         let totalDinheiro = 0, totalPix = 0, totalCartao = 0, totalOnline = 0;
         for(let i=0;i<15;i++) {
             totalDinheiro += valoresPorTipo[i].dinheiro;
@@ -722,7 +795,6 @@
         }
     }
     
-    // Renderização (já implementada anteriormente, aqui apenas resumo)
     function atualizarInterfaceCompleta() {
         renderizarContagem();
         renderizarUltimosPedidos();
@@ -733,6 +805,9 @@
         document.getElementById('valorInicialCaixa').value = formatarMoeda(valorInicialCaixa);
         document.getElementById('qtdeMotoqueiros').value = qtdeMotoqueirosAtivos;
         document.getElementById('alertaDivergencia').style.display = 'none';
+        // limpa resultado da busca visualmente ao atualizar dados (opcional)
+        const resultDiv = document.getElementById('resultadoBusca');
+        if(resultDiv.style.display !== 'none') resultDiv.style.display = 'none';
     }
     
     function renderizarContagem() {
@@ -1103,6 +1178,8 @@
     document.getElementById('btnWhatsApp').addEventListener('click', enviarWhatsApp);
     document.getElementById('btnNovoExpediente').addEventListener('click', novoExpediente);
     document.getElementById('btnVerificarCaixa').addEventListener('click', verificarDivergencia);
+    document.getElementById('btnBuscarPedido').addEventListener('click', buscarPedido);
+    document.getElementById('buscaPedidoInput').addEventListener('keypress', (e) => { if(e.key === 'Enter') buscarPedido(); });
     
     document.querySelectorAll('.payment-btn').forEach(btn=>{
         btn.addEventListener('click',()=>{
@@ -1110,13 +1187,6 @@
             document.querySelectorAll('.payment-btn').forEach(b=>b.classList.remove('selected'));
             btn.classList.add('selected');
             pagamentoSelecionado = btn.dataset.payment;
-        });
-        // Permitir Enter nos botões de pagamento
-        btn.addEventListener('keypress', (e) => {
-            if(e.key === 'Enter') {
-                e.preventDefault();
-                btn.click();
-            }
         });
         btn.setAttribute('tabindex', '0');
     });
