@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Gestão de Entregas - Com Busca</title>
+    <title>Gestão de Entregas - Corrigido</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
         
@@ -19,7 +19,6 @@
             --moto-bg: #f8fafc;
             --status-bg: #fff;
             --input-bg: white;
-            --btn-primary: #3b82f6;
         }
         
         body.dark {
@@ -43,6 +42,40 @@
         .status-online { color: #16a34a; font-weight: bold; }
         .status-offline { color: #dc2626; font-weight: bold; }
         
+        .stats-bar {
+            background: var(--card-bg);
+            border-radius: 60px;
+            padding: 12px 24px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            border: 1px solid var(--border);
+        }
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: #3b82f6;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 40px;
+            min-width: 60px;
+            text-align: center;
+        }
+        .stat-number.pendentes { background: #f59e0b; }
+        .stat-number.concluidos { background: #22c55e; }
+        .stat-number.total { background: #8b5cf6; }
+        
         .card { background: var(--card-bg); border-radius: 24px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid var(--border); }
         .card h2 { font-size: 1.3rem; margin-bottom: 16px; color: var(--text); display: flex; align-items: center; gap: 8px; }
         
@@ -65,11 +98,11 @@
             color: var(--text);
         }
         .pedido-card:hover { transform: translateX(4px); background: var(--pedido-pendente); }
-        .pedido-card.selecionado { background: #3b82f6; color: white; border-left-color: #1e3a8a; }
+        .pedido-card.selecionado { background: #2563eb; color: white; border-left-color: #1e3a8a; }
+        .pedido-card.selecionado .pedido-valor { color: #e0f2fe; }
         .pedido-card.pendente { background: var(--pedido-pendente); border-left-color: #f59e0b; }
         .pedido-card.multiplo { background: var(--pedido-multiplo); border-left-color: #ec4899; }
         .pedido-card.cancelado { background: var(--pedido-cancelado); border-left-color: #9ca3af; opacity: 0.6; text-decoration: line-through; cursor: not-allowed; }
-        .pedido-card.cancelado:hover { transform: none; background: var(--pedido-cancelado); }
         
         .pedido-numero { font-weight: 800; font-size: 1.3rem; }
         .pedido-valor { font-size: 0.9rem; font-weight: 600; color: #16a34a; }
@@ -104,7 +137,6 @@
         body.dark .moto-acertos { background: #334155; color: #f1f5f9; }
         .acerto-item { display: flex; justify-content: space-between; padding: 2px 0; }
         
-        /* Busca */
         .busca-container {
             display: flex;
             gap: 10px;
@@ -133,14 +165,31 @@
             border-radius: 20px;
             font-size: 0.9rem;
             animation: fadeIn 0.3s;
+            cursor: pointer;
+            transition: 0.2s;
         }
+        .resultado-busca:hover { transform: scale(1.01); }
         .resultado-sucesso { background: #d1fae5; color: #065f46; border-left: 5px solid #10b981; }
         .resultado-alerta { background: #fef3c7; color: #92400e; border-left: 5px solid #f59e0b; }
         .resultado-erro { background: #fee2e2; color: #991b1b; border-left: 5px solid #ef4444; }
-        body.dark .resultado-sucesso { background: #064e3b; color: #d1fae5; }
-        body.dark .resultado-alerta { background: #78350f; color: #fef3c7; }
-        body.dark .resultado-erro { background: #7f1d1d; color: #fee2e2; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .alert-modal {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 16px 20px;
+            border-radius: 20px;
+            border-left: 5px solid #f59e0b;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 2000;
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        }
+        .alert-modal.error { background: #fee2e2; color: #991b1b; border-left-color: #ef4444; }
+        .alert-modal.success { background: #d1fae5; color: #065f46; border-left-color: #10b981; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         
         .btn-success { background: #22c55e; }
         .btn-success:hover { background: #16a34a; }
@@ -159,6 +208,16 @@
         .form-group label { display: block; font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: var(--text); }
         .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 16px; font-size: 0.9rem; background: var(--input-bg); color: var(--text); }
         
+        .despesa-item {
+            background: var(--moto-bg);
+            border-radius: 16px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: var(--card-bg); padding: 24px; border-radius: 32px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; color: var(--text); }
         .close-modal { float: right; font-size: 28px; cursor: pointer; }
@@ -176,6 +235,7 @@
         
         .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
         
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 1000px) { .grid-3 { grid-template-columns: 1fr; } }
         @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
     </style>
@@ -191,6 +251,14 @@
             <button id="btnApagarTudo" class="btn-small" style="background:#991b1b;">🗑️ Apagar tudo</button>
         </div>
     </div>
+    
+    <div class="stats-bar">
+        <div class="stat-item">🟡 Pendentes: <span class="stat-number pendentes" id="totalPendentes">0</span></div>
+        <div class="stat-item">✅ Concluídos: <span class="stat-number concluidos" id="totalConcluidos">0</span></div>
+        <div class="stat-item">❌ Cancelados: <span class="stat-number" style="background:#ef4444;" id="totalCancelados">0</span></div>
+        <div class="stat-item">📦 Total Geral: <span class="stat-number total" id="totalGeral">0</span></div>
+    </div>
+    
     <div class="status-bar">
         🔌 Firebase: <span id="firebaseStatus">Verificando...</span>
         <span style="margin-left: 12px;">💾 <span id="saveStatus"></span></span>
@@ -209,7 +277,6 @@
         <button id="btnDiaProximo">Próximo dia ▶</button>
     </div>
 
-    <!-- BARRA DE BUSCA -->
     <div class="busca-container">
         <input type="text" id="buscaNumero" placeholder="🔍 Digite o número do pedido para buscar..." class="numero-only">
         <button id="btnBuscarPedido" class="btn-small">Buscar Pedido</button>
@@ -260,14 +327,37 @@
         <div class="card">
             <h2>💰 Controle de Caixa</h2>
             <div class="form-row">
-                <div class="form-group"><label>Valor inicial do caixa</label><input type="text" id="caixaInicial" class="valor-input" placeholder="0,00"></div>
-                <div class="form-group"><label>Valor real final</label><input type="text" id="caixaFinalReal" class="valor-input" placeholder="0,00"></div>
+                <div class="form-group">
+                    <label>Início de caixa (R$)</label>
+                    <input type="text" id="caixaInicial" class="valor-input" placeholder="0,00" value="0,00">
+                </div>
+                <div class="form-group">
+                    <button id="btnSalvarCaixa" class="btn-small" style="margin-top: 24px;">Salvar início</button>
+                </div>
             </div>
+            
+            <h3>📤 Despesas / Retiradas</h3>
+            <div id="despesasLista"></div>
             <div class="form-row">
-                <div class="form-group"><button id="btnSalvarCaixa" class="btn-small">Salvar inicial</button></div>
-                <div class="form-group"><button id="btnConferirCaixa" class="btn-small">Conferir caixa</button></div>
+                <input type="text" id="novaDespesaValor" placeholder="Valor R$" class="valor-input" style="flex:1;">
+                <input type="text" id="novaDespesaObs" placeholder="Observação" style="flex:2;">
+                <button id="btnAddDespesa" class="btn-small">+ Adicionar</button>
             </div>
-            <div id="resultadoConferencia" class="caixa-resumo"></div>
+            
+            <div class="form-row" style="margin-top: 12px;">
+                <div class="form-group">
+                    <label>Valor real final (R$)</label>
+                    <input type="text" id="caixaFinalReal" class="valor-input" placeholder="0,00">
+                </div>
+                <div class="form-group">
+                    <button id="btnConferirCaixa" class="btn-small" style="margin-top: 24px;">Conferir caixa</button>
+                </div>
+            </div>
+            
+            <div class="caixa-resumo" id="resultadoConferencia">
+                <strong>📊 FECHAMENTO DE CAIXA</strong><br>
+                Clique em "Conferir caixa" para calcular
+            </div>
             <button id="btnRelatorioWhatsApp" class="btn-wa" style="margin-top: 12px;">📱 Relatório WhatsApp</button>
         </div>
     </div>
@@ -319,19 +409,18 @@
         <input type="hidden" id="acertosMotoId">
         <div class="form-group"><label>💰 Pegou dinheiro do caixa (R$)</label><input type="text" id="acertosRetiradaCaixa" class="valor-input" placeholder="0,00"></div>
         <div class="form-group"><label>📲 Pix Moto recebido (R$)</label><input type="text" id="acertosPixMoto" class="valor-input" placeholder="0,00"></div>
-        <div class="form-group"><label>🥤 Sucos (quantidade)</label><input type="number" id="acertosSucos" value="0" style="width:100%"></div>
-        <div class="form-group"><label>🥫 Latas/Refrigerante (quantidade)</label><input type="number" id="acertosLatas" value="0" style="width:100%"></div>
-        <div class="form-group"><label>🧃 1 Litro (quantidade)</label><input type="number" id="acertosLitros" value="0" style="width:100%"></div>
-        <div class="form-group"><label>💰 Valor total das bebidas (R$)</label><input type="text" id="acertosBebidasValor" class="valor-input" placeholder="0,00"></div>
+        <div class="form-group"><label>🥤 Sucos</label><input type="number" id="acertosSucos" value="0"></div>
+        <div class="form-group"><label>🥫 Latas</label><input type="number" id="acertosLatas" value="0"></div>
+        <div class="form-group"><label>🧃 1 Litro</label><input type="number" id="acertosLitros" value="0"></div>
+        <div class="form-group"><label>💰 Valor das bebidas (R$)</label><input type="text" id="acertosBebidasValor" class="valor-input" placeholder="0,00"></div>
         <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button id="btnSalvarAcertos" class="btn-small btn-success">Salvar acertos</button>
+            <button id="btnSalvarAcertos" class="btn-small btn-success">Salvar</button>
             <button onclick="fecharModalAcertos()" class="btn-small">Cancelar</button>
         </div>
     </div>
 </div>
 
 <script>
-    // Firebase Config
     const firebaseConfig = {
         apiKey: "AIzaSyBLmlqiRUlatPCpqYDSY62Bj993KwVp_-E",
         authDomain: "newagent-222f6.firebaseapp.com",
@@ -352,7 +441,20 @@
         document.getElementById('firebaseStatus').innerHTML = '❌ Offline (local)';
     }
 
-    // Modo Noturno
+    // Dados iniciais
+    const dadosIniciais = {
+        pendentes: [
+            { numero: "1436", valor: 0, pagamento: "online" },
+            { numero: "1467", valor: 0, pagamento: "online" },
+            { numero: "3722", valor: 0, pagamento: "online" },
+            { numero: "6409", valor: 0, pagamento: "online" },
+            { numero: "7263", valor: 0, pagamento: "online" },
+            { numero: "0006", valor: 0, pagamento: "online" },
+            { numero: "9487", valor: 0, pagamento: "online" },
+            { numero: "4861", valor: 0, pagamento: "online" }
+        ]
+    };
+
     function toggleModoNoturno() {
         document.body.classList.toggle('dark');
         const btn = document.getElementById('btnModoNoturno');
@@ -364,15 +466,37 @@
         document.getElementById('btnModoNoturno').innerHTML = '☀️ Modo Claro';
     }
 
-    // Estrutura
     let motoqueiros = [];
     let todosPedidos = [];
-    let config = { caixaInicial: 0 };
+    let config = { caixaInicial: 0, despesas: [] };
     let currentDate = new Date().toISOString().slice(0,10);
     let currentTurno = "manha";
     let isLoading = false;
     let motoqueiroSelecionado = null;
     let pedidosSelecionados = new Set();
+
+    function playBeep() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 880;
+            gain.gain.value = 0.2;
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+            osc.stop(ctx.currentTime + 0.4);
+        } catch(e) { console.log("Som não suportado"); }
+    }
+
+    function showAlert(message, type = 'warning') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert-modal ${type === 'error' ? 'error' : (type === 'success' ? 'success' : '')}`;
+        alertDiv.innerHTML = message;
+        document.body.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
 
     function inicializarMotoqueiros(quantidade) {
         const novos = [];
@@ -396,7 +520,7 @@
         motoqueiros = novos;
     }
 
-    function getStorageKey() { return `entregas_final_v3_${currentDate}_${currentTurno}`; }
+    function getStorageKey() { return `entregas_final_v8_${currentDate}_${currentTurno}`; }
     function showSaveStatus(msg, isError) {
         let el = document.getElementById('saveStatus');
         el.innerHTML = msg;
@@ -442,11 +566,23 @@
         if (dados) {
             motoqueiros = dados.motoqueiros || [];
             todosPedidos = dados.todosPedidos || [];
-            config = dados.config || { caixaInicial: 0 };
+            config = dados.config || { caixaInicial: 0, despesas: [] };
         } else {
             motoqueiros = [];
             todosPedidos = [];
-            config = { caixaInicial: 0 };
+            config = { caixaInicial: 0, despesas: [] };
+            
+            // Adicionar dados iniciais
+            dadosIniciais.pendentes.forEach(p => {
+                todosPedidos.push({
+                    id: Date.now() + "-" + Math.random().toString(36).substr(2,6),
+                    numero: p.numero,
+                    valor: p.valor,
+                    pagamento: p.pagamento,
+                    status: 'pendente',
+                    data: new Date().toLocaleString()
+                });
+            });
         }
         if (motoqueiros.length === 0) inicializarMotoqueiros(5);
         motoqueiros.forEach(m => { 
@@ -478,6 +614,18 @@
                 }
             }
         });
+        atualizarStats();
+    }
+
+    function atualizarStats() {
+        const pendentes = todosPedidos.filter(p => p.status === 'pendente').length;
+        const concluidos = todosPedidos.filter(p => p.status === 'concluido').length;
+        const cancelados = todosPedidos.filter(p => p.status === 'cancelado').length;
+        const total = todosPedidos.length;
+        document.getElementById('totalPendentes').innerText = pendentes;
+        document.getElementById('totalConcluidos').innerText = concluidos;
+        document.getElementById('totalCancelados').innerText = cancelados;
+        document.getElementById('totalGeral').innerText = total;
     }
 
     function getNumerosMultiplos() {
@@ -491,35 +639,19 @@
         return multiplos;
     }
 
-    // FUNÇÃO DE BUSCAR PEDIDO
     function buscarPedido() {
         const numero = document.getElementById('buscaNumero').value.trim();
         const resultDiv = document.getElementById('resultadoBusca');
-        
-        if (!numero) {
-            resultDiv.style.display = 'none';
-            return;
-        }
-        
-        // Buscar em todos os pedidos (pendentes, concluídos e cancelados)
+        if (!numero) { resultDiv.style.display = 'none'; return; }
         const pedidosEncontrados = todosPedidos.filter(p => p.numero === numero);
-        
         if (pedidosEncontrados.length === 0) {
-            resultDiv.innerHTML = `
-                <div class="resultado-busca resultado-erro">
-                    ❌ Nenhum pedido encontrado com o número #${numero}
-                </div>
-            `;
+            resultDiv.innerHTML = `<div class="resultado-busca resultado-erro">❌ Nenhum pedido encontrado com o número #${numero}</div>`;
             resultDiv.style.display = 'block';
             return;
         }
-        
-        let html = `<div class="resultado-busca">`;
+        let html = `<div>`;
         for (const ped of pedidosEncontrados) {
-            let statusText = '';
-            let statusClass = '';
-            let motoNome = '';
-            
+            let statusText = '', statusClass = '', motoNome = '';
             if (ped.status === 'pendente') {
                 statusText = '🟡 PENDENTE';
                 statusClass = 'resultado-alerta';
@@ -534,37 +666,26 @@
                 statusClass = 'resultado-erro';
                 motoNome = `Motivo: ${ped.motivo || 'Cancelado'}`;
             }
-            
-            html += `<div class="${statusClass}" style="margin-bottom: 8px; padding: 12px; border-radius: 16px;">
+            html += `<div class="resultado-busca ${statusClass}" onclick="editarPedido('${ped.id}')" style="margin-bottom: 8px; cursor: pointer;">
                         <strong>📦 Pedido #${ped.numero}</strong><br>
                         📍 Status: ${statusText}<br>
                         🛵 Motoqueiro: ${motoNome}<br>
                         💰 Valor: ${ped.valor > 0 ? formatarMoeda(ped.valor) : 'Sem valor'}<br>
                         💳 Pagamento: ${ped.pagamento}<br>
-                        🕐 Data: ${ped.data}
+                        🕐 Data: ${ped.data}<br>
+                        <small>🔍 Clique para editar</small>
                      </div>`;
         }
         html += `</div>`;
-        
         resultDiv.innerHTML = html;
         resultDiv.style.display = 'block';
-        
-        // Scroll suave até o resultado
-        resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        
-        // Esconder após 10 segundos
-        setTimeout(() => {
-            if (resultDiv.style.display === 'block') {
-                resultDiv.style.display = 'none';
-            }
-        }, 10000);
     }
 
     function renderizarPedidosPendentes() {
         const container = document.getElementById('pedidosPendentesLista');
         const pendentes = todosPedidos.filter(p => p.status === 'pendente');
+        pendentes.sort((a,b) => new Date(b.data) - new Date(a.data));
         const numerosMultiplos = getNumerosMultiplos();
-        
         document.getElementById('qtdPendentes').innerText = pendentes.length;
         if (pendentes.length === 0) {
             container.innerHTML = '<div style="text-align:center; color:#999; padding:40px;">Nenhum pedido pendente</div>';
@@ -579,7 +700,8 @@
                     <div class="pedido-valor">${ped.valor > 0 ? formatarMoeda(ped.valor) : '—'}</div>
                     <div style="display: flex; gap: 4px;">
                         <button class="btn-small btn-edit" style="padding:4px 8px;" onclick="event.stopPropagation(); editarPedido('${ped.id}')">✏️</button>
-                        <button class="btn-small btn-danger" style="padding:4px 8px;" onclick="event.stopPropagation(); cancelarPedido('${ped.id}')">❌</button>
+                        <button class="btn-small btn-danger" style="padding:4px 8px;" onclick="event.stopPropagation(); excluirPedido('${ped.id}')">🗑️</button>
+                        <button class="btn-small" style="background:#ef4444; padding:4px 8px;" onclick="event.stopPropagation(); cancelarPedido('${ped.id}')">❌</button>
                     </div>
                 </div>
             `;
@@ -589,25 +711,24 @@
     function renderizarPedidosConcluidos() {
         const container = document.getElementById('pedidosConcluidosLista');
         const concluidos = todosPedidos.filter(p => p.status === 'concluido').slice(-20);
-        if (concluidos.length === 0) {
-            container.innerHTML = '<span style="color:#999;">Nenhum pedido concluído</span>';
-            return;
-        }
+        if (concluidos.length === 0) { container.innerHTML = '<span style="color:#999;">Nenhum pedido concluído</span>'; return; }
         container.innerHTML = concluidos.map(ped => {
             const moto = motoqueiros.find(m => m.id === ped.motoqueiroId);
-            return `<span style="background:#e8f5e9; padding:4px 12px; border-radius:20px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px; color:#1e293b;">#${ped.numero} → ${moto ? moto.nome : '?'} <button onclick="editarPedido('${ped.id}')" style="background:#3b82f6; padding:2px 6px; font-size:0.6rem;">✏️</button></span>`;
+            return `<span style="background:#e8f5e9; padding:4px 12px; border-radius:20px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px; color:#1e293b;">#${ped.numero} → ${moto ? moto.nome : '?'} 
+                <button onclick="editarPedido('${ped.id}')" style="background:#3b82f6; padding:2px 6px; font-size:0.6rem;">✏️</button>
+                <button onclick="excluirPedido('${ped.id}')" style="background:#ef4444; padding:2px 6px; font-size:0.6rem;">🗑️</button>
+            </span>`;
         }).join('');
     }
 
     function renderizarPedidosCancelados() {
         const container = document.getElementById('pedidosCanceladosLista');
         const cancelados = todosPedidos.filter(p => p.status === 'cancelado').slice(-20);
-        if (cancelados.length === 0) {
-            container.innerHTML = '<span style="color:#999;">Nenhum pedido cancelado</span>';
-            return;
-        }
+        if (cancelados.length === 0) { container.innerHTML = '<span style="color:#999;">Nenhum pedido cancelado</span>'; return; }
         container.innerHTML = cancelados.map(ped => {
-            return `<span style="background:#fee2e2; padding:4px 12px; border-radius:20px; font-size:0.75rem; text-decoration:line-through; color:#1e293b;">#${ped.numero} - ${ped.motivo || 'Cancelado'}</span>`;
+            return `<span style="background:#fee2e2; padding:4px 12px; border-radius:20px; font-size:0.75rem; text-decoration:line-through; color:#1e293b; display:inline-flex; align-items:center; gap:4px;">#${ped.numero} - ${ped.motivo || 'Cancelado'}
+                <button onclick="excluirPedido('${ped.id}')" style="background:#ef4444; padding:2px 6px; font-size:0.6rem;">🗑️</button>
+            </span>`;
         }).join('');
     }
 
@@ -628,7 +749,7 @@
                 renderizarMotoqueiros();
             };
             card.innerHTML = `
-                <div class="moto-nome" data-id="${moto.id}" title="Duplo clique para editar nome">✏️ ${moto.nome}</div>
+                <div class="moto-nome" data-id="${moto.id}">✏️ ${moto.nome}</div>
                 <div class="moto-entregas">${moto.entregas} entrega${moto.entregas !== 1 ? 's' : ''}</div>
                 <div class="moto-valor">💰 Total: ${formatarMoeda(moto.valorTotal)}</div>
                 <div class="moto-acertos">
@@ -648,14 +769,12 @@
                     salvarDados();
                     renderizarMotoqueiros();
                     renderizarPedidosConcluidos();
-                    showSaveStatus(`✅ Nome alterado para ${moto.nome}`, false);
                 }
             };
             container.appendChild(card);
         });
     }
 
-    // Seleção de pedidos
     window.toggleSelecionarPedido = function(id) {
         const ped = todosPedidos.find(p => p.id === id);
         if (ped && ped.status === 'pendente') {
@@ -664,19 +783,13 @@
             renderizarPedidosPendentes();
         }
     };
-    function selecionarTodos() {
-        const pendentes = todosPedidos.filter(p => p.status === 'pendente');
-        pendentes.forEach(p => pedidosSelecionados.add(p.id));
-        renderizarPedidosPendentes();
-    }
-    function limparSelecao() {
-        pedidosSelecionados.clear();
-        renderizarPedidosPendentes();
-    }
+    function selecionarTodos() { const pendentes = todosPedidos.filter(p => p.status === 'pendente'); pendentes.forEach(p => pedidosSelecionados.add(p.id)); renderizarPedidosPendentes(); }
+    function limparSelecao() { pedidosSelecionados.clear(); renderizarPedidosPendentes(); }
     function associarSelecionados() {
         if (motoqueiroSelecionado === null) { alert("Selecione um motoqueiro primeiro!"); return; }
         if (pedidosSelecionados.size === 0) { alert("Selecione pelo menos um pedido!"); return; }
         const motoId = motoqueiroSelecionado;
+        const motoNome = motoqueiros.find(m => m.id === motoId)?.nome;
         pedidosSelecionados.forEach(pedId => {
             const ped = todosPedidos.find(p => p.id === pedId);
             if (ped && ped.status === 'pendente') {
@@ -689,35 +802,32 @@
         motoqueiroSelecionado = null;
         salvarDados();
         atualizarInterfaceCompleta();
-        alert("Pedidos associados com sucesso!");
+        showAlert(`✅ ${pedidosSelecionados.size} pedido(s) associado(s) ao motoqueiro ${motoNome}!`, 'success');
     }
 
-    // Registrar pedido
     function registrarPedido() {
         let numero = document.getElementById('pedidoNumero').value.trim();
         let valor = parseValor(document.getElementById('pedidoValor').value);
         let pagamento = document.getElementById('pedidoPagamento').value;
         if (!numero) { alert("Número do pedido obrigatório"); return; }
         if (numero.length > 8) { alert("Número muito longo"); return; }
-        
         const cancelados = todosPedidos.filter(p => p.status === 'cancelado' && p.numero === numero);
         if (cancelados.length > 0) {
             alert(`❌ Não é possível adicionar o pedido #${numero} pois ele consta na lista de pedidos cancelados!`);
-            document.getElementById('pedidoNumero').value = "";
-            document.getElementById('pedidoNumero').focus();
+            document.getElementById('pedidoNumero').value = ""; document.getElementById('pedidoNumero').focus();
             return;
         }
-        
+        if (valor === 0) pagamento = "online";
         const novoId = Date.now() + "-" + Math.random().toString(36).substr(2,6);
-        const novoPedido = {
-            id: novoId, numero, valor, pagamento,
-            status: 'pendente', data: new Date().toLocaleString()
-        };
+        const novoPedido = { id: novoId, numero, valor, pagamento, status: 'pendente', data: new Date().toLocaleString() };
         todosPedidos.push(novoPedido);
         salvarDados();
         atualizarInterfaceCompleta();
+        playBeep();
+        showAlert(`✅ Pedido #${numero} adicionado com sucesso!`, 'success');
         document.getElementById('pedidoNumero').value = "";
         document.getElementById('pedidoValor').value = "";
+        document.getElementById('pedidoPagamento').value = "";
         document.getElementById('pedidoNumero').focus();
     }
 
@@ -749,40 +859,41 @@
         const novoPagamento = document.getElementById('editPagamento').value;
         const novoMotoId = document.getElementById('editMotoqueiro').value;
         if (!novoNumero) { alert("Número obrigatório"); return; }
-        ped.numero = novoNumero;
-        ped.valor = novoValor;
-        ped.pagamento = novoPagamento;
+        ped.numero = novoNumero; ped.valor = novoValor; ped.pagamento = novoPagamento;
         if (novoMotoId && novoMotoId !== "") {
             ped.motoqueiroId = parseInt(novoMotoId);
             if (ped.status === 'pendente') ped.status = 'concluido';
         }
-        salvarDados();
-        atualizarInterfaceCompleta();
-        fecharModalEditar();
-        alert("Pedido atualizado!");
+        salvarDados(); atualizarInterfaceCompleta(); fecharModalEditar(); showAlert(`✅ Pedido #${ped.numero} atualizado!`, 'success');
     }
+
+    window.excluirPedido = function(id) {
+        if (confirm("⚠️ Tem certeza que deseja EXCLUIR este pedido permanentemente?")) {
+            const index = todosPedidos.findIndex(p => p.id === id);
+            if (index !== -1) {
+                const ped = todosPedidos[index];
+                todosPedidos.splice(index, 1);
+                salvarDados(); atualizarInterfaceCompleta();
+                const buscaNumero = document.getElementById('buscaNumero').value.trim();
+                if (buscaNumero) buscarPedido();
+                showAlert(`✅ Pedido #${ped.numero} excluído!`, 'success');
+            }
+        }
+    };
 
     window.cancelarPedido = function(id) {
         const ped = todosPedidos.find(p => p.id === id);
         if (!ped || ped.status === 'cancelado') return;
         const motivo = prompt("Motivo do cancelamento:", "Cliente cancelou");
         if (!motivo) return;
-        ped.status = 'cancelado';
-        ped.motivo = motivo;
-        ped.dataCancelamento = new Date().toLocaleString();
-        if (ped.motoqueiroId) {
-            ped.motoqueiroId = null;
-        }
-        salvarDados();
-        atualizarInterfaceCompleta();
-        alert(`Pedido #${ped.numero} cancelado!`);
+        ped.status = 'cancelado'; ped.motivo = motivo; ped.dataCancelamento = new Date().toLocaleString();
+        if (ped.motoqueiroId) ped.motoqueiroId = null;
+        salvarDados(); atualizarInterfaceCompleta(); showAlert(`❌ Pedido #${ped.numero} cancelado!`, 'error');
     };
 
     function fecharModalEditar() { document.getElementById('modalEditarPedido').style.display = 'none'; }
 
-    // Acertos
     let currentMotoAcertosId = null;
-    
     function abrirEditarAcertos(motoId) {
         currentMotoAcertosId = motoId;
         const moto = motoqueiros.find(m => m.id === motoId);
@@ -797,7 +908,6 @@
         document.getElementById('acertosBebidasValor').value = moto.acertos.bebidas.valor.toFixed(2).replace('.', ',');
         document.getElementById('modalAcertosMoto').style.display = 'flex';
     }
-    
     function salvarAcertos() {
         const motoId = parseInt(document.getElementById('acertosMotoId').value);
         const moto = motoqueiros.find(m => m.id === motoId);
@@ -810,15 +920,50 @@
             litro: parseInt(document.getElementById('acertosLitros').value) || 0,
             valor: parseValor(document.getElementById('acertosBebidasValor').value)
         };
-        salvarDados();
-        renderizarMotoqueiros();
-        fecharModalAcertos();
-        alert("Acertos salvos com sucesso!");
+        salvarDados(); renderizarMotoqueiros(); fecharModalAcertos(); showAlert(`✅ Acertos de ${moto.nome} salvos!`, 'success');
     }
-    
     function fecharModalAcertos() { document.getElementById('modalAcertosMoto').style.display = 'none'; }
 
-    // Caixa
+    // DESPESAS - CORRIGIDO
+    function renderizarDespesas() {
+        const div = document.getElementById('despesasLista');
+        if (!config.despesas || config.despesas.length === 0) { 
+            div.innerHTML = "<div style='color:gray; text-align:center; padding:10px;'>Nenhuma despesa registrada</div>"; 
+            return; 
+        }
+        div.innerHTML = config.despesas.map((d,i) => `
+            <div class="despesa-item">
+                <span><strong>${formatarMoeda(d.valor)}</strong> - ${d.observacao || "sem obs"} <small>${d.data || ""}</small></span>
+                <button class="btn-small btn-danger" onclick="removerDespesa(${i})">Remover</button>
+            </div>
+        `).join('');
+    }
+    window.removerDespesa = function(i) { 
+        config.despesas.splice(i,1); 
+        salvarDados(); 
+        renderizarDespesas(); 
+        conferirCaixa();
+        showAlert("✅ Despesa removida!", 'success');
+    };
+    function adicionarDespesa() {
+        let val = parseValor(document.getElementById('novaDespesaValor').value);
+        let obs = document.getElementById('novaDespesaObs').value.trim();
+        if (val <= 0) { alert("Digite um valor válido maior que zero!"); return; }
+        if (!config.despesas) config.despesas = [];
+        config.despesas.push({ 
+            valor: val, 
+            observacao: obs || "Sem observação", 
+            data: new Date().toLocaleString() 
+        });
+        salvarDados(); 
+        renderizarDespesas();
+        document.getElementById('novaDespesaValor').value = ""; 
+        document.getElementById('novaDespesaObs').value = "";
+        conferirCaixa();
+        showAlert(`✅ Despesa de ${formatarMoeda(val)} adicionada!`, 'success');
+    }
+
+    // CAIXA - CORRIGIDO
     function salvarCaixaInicial() {
         let num = parseValor(document.getElementById('caixaInicial').value);
         if (isNaN(num)) num = 0;
@@ -826,36 +971,56 @@
         salvarDados();
         document.getElementById('caixaInicial').value = formatarMoeda(num);
         conferirCaixa();
-        alert(`Caixa inicial salvo: ${formatarMoeda(num)}`);
+        showAlert(`✅ Início de caixa salvo: ${formatarMoeda(num)}`, 'success');
     }
 
     function conferirCaixa() {
-        let totalDin = motoqueiros.reduce((s,m) => s + m.valoresPorPagamento.dinheiro, 0);
-        let totalPegouCaixa = motoqueiros.reduce((s,m) => s + m.acertos.retiradaCaixa, 0);
-        let esperado = config.caixaInicial + totalDin - totalPegouCaixa;
-        let real = parseValor(document.getElementById('caixaFinalReal').value);
-        let falta = esperado - real;
+        // Garantir que config.despesas existe
+        if (!config.despesas) config.despesas = [];
         
-        let msg = `<strong>💰 Caixa inicial:</strong> ${formatarMoeda(config.caixaInicial)}<br>`;
-        msg += `<strong>💵 Dinheiro recebido:</strong> ${formatarMoeda(totalDin)}<br>`;
-        msg += `<strong>📤 Total "Pegou caixa" (motos):</strong> ${formatarMoeda(totalPegouCaixa)}<br>`;
-        msg += `<strong>🧾 Caixa esperado:</strong> ${formatarMoeda(esperado)}<br>`;
-        if (!isNaN(real) && real !== 0) {
-            msg += `<strong>🔍 Caixa real:</strong> ${formatarMoeda(real)}<br>`;
+        // Vendas em DINHEIRO (apenas pedidos concluídos com pagamento "dinheiro")
+        let vendasDinheiro = 0;
+        todosPedidos.forEach(ped => {
+            if (ped.status === 'concluido' && ped.pagamento === 'dinheiro') {
+                vendasDinheiro += ped.valor;
+            }
+        });
+        
+        // Total que os motoqueiros pegaram do caixa
+        let totalPegouCaixa = motoqueiros.reduce((s,m) => s + (m.acertos?.retiradaCaixa || 0), 0);
+        
+        // Total de despesas/retiradas
+        let totalDespesas = config.despesas.reduce((s,d) => s + (d.valor || 0), 0);
+        
+        // Fórmula: Caixa Esperado = Vendas + Início - Despesas - PegouCaixa
+        let caixaEsperado = vendasDinheiro + config.caixaInicial - totalDespesas - totalPegouCaixa;
+        let caixaReal = parseValor(document.getElementById('caixaFinalReal').value);
+        let falta = caixaEsperado - caixaReal;
+        
+        let msg = `<strong>📊 FECHAMENTO DE CAIXA</strong><br>`;
+        msg += `<strong>➕ Vendas (dinheiro):</strong> ${formatarMoeda(vendasDinheiro)}<br>`;
+        msg += `<strong>➕ Início de caixa:</strong> ${formatarMoeda(config.caixaInicial)}<br>`;
+        msg += `<strong>➖ Despesas/Retiradas:</strong> ${formatarMoeda(totalDespesas)}<br>`;
+        msg += `<strong>➖ Total "Pegou caixa" (motos):</strong> ${formatarMoeda(totalPegouCaixa)}<br>`;
+        msg += `<hr><strong>🧾 Caixa esperado:</strong> ${formatarMoeda(caixaEsperado)}<br>`;
+        
+        if (!isNaN(caixaReal) && caixaReal !== 0) {
+            msg += `<strong>🔍 Caixa real informado:</strong> ${formatarMoeda(caixaReal)}<br>`;
             if (Math.abs(falta) > 10) {
-                msg += `<div style="background:#fee2e2; padding:8px; border-radius:12px; margin-top:8px;">⚠️ FALTA NO CAIXA: ${formatarMoeda(falta)}</div>`;
+                msg += `<div style="background:#fee2e2; padding:8px; border-radius:12px; margin-top:8px;">⚠️ DIFERENÇA DE ${formatarMoeda(Math.abs(falta))} (${falta > 0 ? 'SOBRA' : 'FALTA'})</div>`;
+                if (falta < 0) msg += `<div style="background:#fee2e2; padding:8px; border-radius:12px; margin-top:4px;">Faltam ${formatarMoeda(-falta)} para completar o caixa.</div>`;
             } else {
-                msg += `<div style="background:#dcfce7; padding:8px; border-radius:12px; margin-top:8px;">✅ Caixa conferido (dentro da tolerância R$10)</div>`;
+                msg += `<div style="background:#dcfce7; padding:8px; border-radius:12px; margin-top:8px;">✅ Caixa conferido! Diferença de ${formatarMoeda(Math.abs(falta))} (dentro da tolerância R$10)</div>`;
             }
         } else {
-            msg += `<span>🔍 Informe o valor real do caixa para conferência.</span>`;
+            msg += `<span style="display:block; margin-top:8px;">🔍 Informe o valor real do caixa e clique em "Conferir caixa" novamente.</span>`;
         }
         document.getElementById('resultadoConferencia').innerHTML = msg;
     }
 
-    // Relatório WhatsApp
     function gerarRelatorioWhatsApp() {
-        let lines = [`*📊 RELATÓRIO - ${currentDate} - ${currentTurno === 'manha' ? 'MANHÃ' : 'NOITE'}*`, ""];
+        let lines = [`*📊 FECHAMENTO DE CAIXA - ${currentDate} - ${currentTurno === 'manha' ? 'MANHÃ' : 'NOITE'}*`, ""];
+        
         lines.push("*👤 MOTOQUEIROS*");
         motoqueiros.filter(m => m.ativo && m.entregas > 0).forEach(m => {
             let ac = m.acertos;
@@ -867,20 +1032,38 @@
             lines.push(`🥤 Sucos: ${beb.suco} | Latas: ${beb.lata} | 1L: ${beb.litro}`);
             lines.push("");
         });
-        let totalDin = motoqueiros.reduce((s,m) => s + m.valoresPorPagamento.dinheiro, 0);
-        let totalPegouCaixa = motoqueiros.reduce((s,m) => s + m.acertos.retiradaCaixa, 0);
-        let esperado = config.caixaInicial + totalDin - totalPegouCaixa;
-        lines.push("*💰 RESUMO DO CAIXA*");
-        lines.push(`Caixa inicial: ${formatarMoeda(config.caixaInicial)}`);
-        lines.push(`Dinheiro recebido: ${formatarMoeda(totalDin)}`);
-        lines.push(`Total "Pegou caixa": ${formatarMoeda(totalPegouCaixa)}`);
-        lines.push(`*Caixa esperado:* ${formatarMoeda(esperado)}`);
+        
+        let vendasDinheiro = 0;
+        todosPedidos.forEach(ped => {
+            if (ped.status === 'concluido' && ped.pagamento === 'dinheiro') {
+                vendasDinheiro += ped.valor;
+            }
+        });
+        let totalPegouCaixa = motoqueiros.reduce((s,m) => s + (m.acertos?.retiradaCaixa || 0), 0);
+        let totalDespesas = config.despesas ? config.despesas.reduce((s,d) => s + (d.valor || 0), 0) : 0;
+        let caixaEsperado = vendasDinheiro + config.caixaInicial - totalDespesas - totalPegouCaixa;
+        
+        lines.push("*💰 FECHAMENTO DE CAIXA*");
+        lines.push(`➕ Vendas (dinheiro): ${formatarMoeda(vendasDinheiro)}`);
+        lines.push(`➕ Início de caixa: ${formatarMoeda(config.caixaInicial)}`);
+        lines.push(`➖ Despesas/Retiradas: ${formatarMoeda(totalDespesas)}`);
+        lines.push(`➖ Total que os motoqueiros pegaram em caixa: ${formatarMoeda(totalPegouCaixa)}`);
+        lines.push(`*🧾 Caixa esperado:* ${formatarMoeda(caixaEsperado)}`);
+        
+        let caixaReal = parseValor(document.getElementById('caixaFinalReal').value);
+        if (!isNaN(caixaReal) && caixaReal !== 0) {
+            lines.push(`🔍 Caixa real: ${formatarMoeda(caixaReal)}`);
+            let falta = caixaEsperado - caixaReal;
+            if (Math.abs(falta) > 10) {
+                lines.push(`⚠️ *DIFERENÇA DE ${formatarMoeda(Math.abs(falta))}* (${falta > 0 ? 'SOBRA' : 'FALTA'})`);
+            } else {
+                lines.push(`✅ Caixa conferido (dentro da tolerância R$10)`);
+            }
+        }
         return lines.join("\n");
     }
 
-    function enviarWhatsApp() { 
-        window.open(`https://wa.me/?text=${encodeURIComponent(gerarRelatorioWhatsApp())}`, '_blank'); 
-    }
+    function enviarWhatsApp() { window.open(`https://wa.me/?text=${encodeURIComponent(gerarRelatorioWhatsApp())}`, '_blank'); }
 
     function atualizarQtdeMotos() {
         let nova = parseInt(document.getElementById('qtdeMotosAtivos').value);
@@ -897,6 +1080,7 @@
         renderizarPedidosConcluidos();
         renderizarPedidosCancelados();
         renderizarMotoqueiros();
+        renderizarDespesas();
         document.getElementById('caixaInicial').value = formatarMoeda(config.caixaInicial);
         conferirCaixa();
     }
@@ -905,33 +1089,25 @@
         let senha = prompt("Senha:");
         if (senha !== "Heimer245") { alert("Senha incorreta"); return; }
         if (!confirm(`Apagar TODOS os dados de ${currentDate} - ${currentTurno}?`)) return;
-        motoqueiros = [];
-        todosPedidos = [];
-        config = { caixaInicial: 0 };
+        motoqueiros = []; todosPedidos = []; config = { caixaInicial: 0, despesas: [] };
         inicializarMotoqueiros(5);
-        pedidosSelecionados.clear();
-        motoqueiroSelecionado = null;
-        salvarDados();
-        atualizarInterfaceCompleta();
-        alert("Dados apagados!");
+        pedidosSelecionados.clear(); motoqueiroSelecionado = null;
+        salvarDados(); atualizarInterfaceCompleta();
+        showAlert("✅ Todos os dados foram apagados!", 'success');
     }
 
     function mudarData(delta) {
-        let d = new Date(currentDate);
-        d.setDate(d.getDate() + delta);
+        let d = new Date(currentDate); d.setDate(d.getDate() + delta);
         currentDate = d.toISOString().slice(0,10);
         document.getElementById('dataSelecionada').value = currentDate;
-        pedidosSelecionados.clear();
-        motoqueiroSelecionado = null;
+        pedidosSelecionados.clear(); motoqueiroSelecionado = null;
         carregarDados();
     }
-
     function mudarTurno(turno) {
         currentTurno = turno;
         document.getElementById('btnTurnoManha').classList.toggle('active', turno === 'manha');
         document.getElementById('btnTurnoNoite').classList.toggle('active', turno === 'noite');
-        pedidosSelecionados.clear();
-        motoqueiroSelecionado = null;
+        pedidosSelecionados.clear(); motoqueiroSelecionado = null;
         carregarDados();
     }
 
@@ -946,6 +1122,7 @@
         document.getElementById('btnSelecionarTodos').onclick = selecionarTodos;
         document.getElementById('btnLimparSelecao').onclick = limparSelecao;
         document.getElementById('btnAssociarSelecionados').onclick = associarSelecionados;
+        document.getElementById('btnAddDespesa').onclick = adicionarDespesa;
         document.getElementById('btnSalvarCaixa').onclick = salvarCaixaInicial;
         document.getElementById('btnConferirCaixa').onclick = conferirCaixa;
         document.getElementById('btnAtualizarMotos').onclick = atualizarQtdeMotos;
@@ -958,14 +1135,10 @@
         document.getElementById('dataSelecionada').onchange = (e) => { currentDate = e.target.value; carregarDados(); };
         document.getElementById('btnSalvarEdicao').onclick = salvarEdicao;
         document.getElementById('btnSalvarAcertos').onclick = salvarAcertos;
-        
-        // Buscar pedido
         document.getElementById('btnBuscarPedido').onclick = buscarPedido;
-        document.getElementById('buscaNumero').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') buscarPedido();
-        });
-        
+        document.getElementById('buscaNumero').addEventListener('keypress', (e) => { if (e.key === 'Enter') buscarPedido(); });
         document.getElementById('pedidoNumero').addEventListener('keypress', e => { if(e.key === 'Enter') registrarPedido(); });
+        
         document.querySelectorAll('.numero-only').forEach(inp => {
             inp.oninput = function() { this.value = this.value.replace(/\D/g, ''); };
             inp.onfocus = function() { this.select(); };
@@ -977,19 +1150,14 @@
         
         window.fecharModalEditar = fecharModalEditar;
         window.fecharModalAcertos = fecharModalAcertos;
-        
         document.querySelectorAll('.close-modal').forEach(btn => {
-            btn.onclick = () => { 
-                document.getElementById('modalEditarPedido').style.display = 'none';
-                document.getElementById('modalAcertosMoto').style.display = 'none';
-            };
+            btn.onclick = () => { document.getElementById('modalEditarPedido').style.display = 'none'; document.getElementById('modalAcertosMoto').style.display = 'none'; };
         });
         window.onclick = (e) => { 
             if (e.target === document.getElementById('modalEditarPedido')) fecharModalEditar();
             if (e.target === document.getElementById('modalAcertosMoto')) fecharModalAcertos();
         };
-        
-        setInterval(() => { if (!isLoading) carregarDados(); }, 10000);
+        setInterval(() => { if (!isLoading) carregarDados(); }, 30000);
     });
 </script>
 </body>
