@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Entregas + Contabilidade | Dias e Turnos</title>
+    <title>Entregas + Contabilidade | Dias e Turnos com Firebase</title>
     <style>
         * {
             margin: 0;
@@ -19,6 +19,16 @@
             max-width: 1400px;
             margin: 0 auto;
         }
+        .status-bar {
+            background: #f1f5f9;
+            padding: 8px 16px;
+            border-radius: 40px;
+            display: inline-block;
+            margin-bottom: 16px;
+            font-size: 0.8rem;
+        }
+        .status-online { color: #16a34a; font-weight: bold; }
+        .status-offline { color: #dc2626; font-weight: bold; }
         .card {
             background: white;
             border-radius: 28px;
@@ -270,9 +280,15 @@
             .date-controls { flex-direction: column; align-items: stretch; }
         }
     </style>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body>
 <div class="app">
+    <div class="status-bar">
+        🔌 Status: <span id="firebaseStatus">Verificando...</span>
+    </div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
         <h1 style="color: #0f172a;">🛵 Entregas + Contabilidade</h1>
         <button id="btnApagarTudo" class="btn-small" style="background:#991b1b;">🗑️ Apagar tudo (este turno)</button>
@@ -397,6 +413,33 @@
 </div>
 
 <script>
+    // ---------- CONFIGURAÇÃO DO FIREBASE ----------
+    const firebaseConfig = {
+        apiKey: "AIzaSyBLmlqiRUlatPCpqYDSY62Bj993KwVp_-E",
+        authDomain: "newagent-222f6.firebaseapp.com",
+        databaseURL: "https://newagent-222f6.firebaseio.com",
+        projectId: "newagent-222f6",
+        storageBucket: "newagent-222f6.firebasestorage.app",
+        messagingSenderId: "45753782568",
+        appId: "1:45753782568:web:93bef3c4caee3686ae001d"
+    };
+    
+    let db = null;
+    let firebaseConnected = false;
+    
+    try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+        firebaseConnected = true;
+        document.getElementById('firebaseStatus').innerHTML = '✅ Conectado ao Firebase';
+        document.getElementById('firebaseStatus').className = 'status-online';
+    } catch(e) {
+        console.warn("Firebase init error", e);
+        firebaseConnected = false;
+        document.getElementById('firebaseStatus').innerHTML = '⚠️ Modo offline (apenas local)';
+        document.getElementById('firebaseStatus').className = 'status-offline';
+    }
+    
     // ---------- DADOS GLOBAIS ----------
     let motoqueiros = [];      
     let todosPedidos = [];     
@@ -405,51 +448,80 @@
         retiradas: [],
     };
     let currentDate = new Date().toISOString().slice(0,10);
-    let currentTurno = "manha"; // "manha" ou "noite"
+    let currentTurno = "manha";
     
-    // Storage keys: "entregas_data_turno"
     function getStorageKey() {
         return `entregas_${currentDate}_${currentTurno}`;
     }
     
-    // Carregar dados do storage atual
-    function carregarDados() {
+    // Salvar no localStorage e Firebase
+    function salvarDados() {
+        const dados = { motoqueiros, todosPedidos, config };
         const key = getStorageKey();
-        const saved = localStorage.getItem(key);
-        if (saved) {
+        // LocalStorage
+        localStorage.setItem(key, JSON.stringify(dados));
+        // Firebase
+        if (firebaseConnected && db) {
+            db.ref('delivery_data/' + key).set(dados).catch(err => {
+                console.warn("Erro ao salvar no Firebase:", err);
+                document.getElementById('firebaseStatus').innerHTML = '⚠️ Erro ao sincronizar';
+            });
+        }
+    }
+    
+    // Carregar dados do período atual (prioriza Firebase, depois localStorage)
+    async function carregarDados() {
+        const key = getStorageKey();
+        let dados = null;
+        
+        if (firebaseConnected && db) {
             try {
-                const data = JSON.parse(saved);
-                motoqueiros = data.motoqueiros || [];
-                todosPedidos = data.todosPedidos || [];
-                config = data.config || { caixaInicial: 0, retiradas: [] };
-            } catch(e) { console.warn(e); }
+                const snapshot = await db.ref('delivery_data/' + key).once('value');
+                if (snapshot.exists()) {
+                    dados = snapshot.val();
+                    console.log("Carregado do Firebase:", key);
+                    document.getElementById('firebaseStatus').innerHTML = '✅ Sincronizado com Firebase';
+                    document.getElementById('firebaseStatus').className = 'status-online';
+                } else {
+                    // Se não existir no Firebase, tenta localStorage
+                    const local = localStorage.getItem(key);
+                    if (local) dados = JSON.parse(local);
+                }
+            } catch(e) {
+                console.warn("Erro ao ler Firebase", e);
+                const local = localStorage.getItem(key);
+                if (local) dados = JSON.parse(local);
+                document.getElementById('firebaseStatus').innerHTML = '⚠️ Offline (usando local)';
+                document.getElementById('firebaseStatus').className = 'status-offline';
+            }
         } else {
-            // Iniciar com estrutura padrão
+            const local = localStorage.getItem(key);
+            if (local) dados = JSON.parse(local);
+        }
+        
+        if (dados) {
+            motoqueiros = dados.motoqueiros || [];
+            todosPedidos = dados.todosPedidos || [];
+            config = dados.config || { caixaInicial: 0, retiradas: [] };
+        } else {
+            // Novo período: inicializa vazio
             motoqueiros = [];
             todosPedidos = [];
             config = { caixaInicial: 0, retiradas: [] };
-        }
-        // Garantir estrutura mínima
-        if (!motoqueiros.length) {
             inicializarMotoqueiros(5);
-        } else {
-            motoqueiros.forEach(m => {
-                if (!m.acertos) m.acertos = { retiradaCaixa: 0, bebidas: { suco: 0, lata: 0, litro: 0, valor: 0 } };
-                if (!m.valoresPorPagamento) m.valoresPorPagamento = { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 };
-                if (m.ativo === undefined) m.ativo = true;
-            });
         }
+        
+        // Garantir estrutura
+        motoqueiros.forEach(m => {
+            if (!m.acertos) m.acertos = { retiradaCaixa: 0, bebidas: { suco: 0, lata: 0, litro: 0, valor: 0 } };
+            if (!m.valoresPorPagamento) m.valoresPorPagamento = { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 };
+            if (m.ativo === undefined) m.ativo = true;
+        });
         document.getElementById('qtdeMotosAtivos').value = motoqueiros.filter(m => m.ativo).length;
         atualizarInterfaceCompleta();
     }
     
-    function salvarDados() {
-        const dados = { motoqueiros, todosPedidos, config };
-        const key = getStorageKey();
-        localStorage.setItem(key, JSON.stringify(dados));
-    }
-    
-    // Funções auxiliares (mesmas do sistema anterior)
+    // ---------- FUNÇÕES AUXILIARES (mesmas do sistema anterior) ----------
     function formatarMoeda(valor) {
         return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     }
@@ -788,7 +860,7 @@
         setTimeout(() => resultDiv.style.display = "none", 5000);
     }
     
-    // CONTABILIDADE
+    // Contabilidade
     function renderizarRetiradas() {
         const div = document.getElementById('retiradasLista');
         if (!config.retiradas.length) { div.innerHTML = "<div style='color:gray;'>Nenhuma retirada registrada</div>"; return; }
@@ -856,7 +928,6 @@
         document.getElementById('resultadoConferencia').innerHTML = msg;
     }
     
-    // RELATÓRIO WHATSAPP
     function gerarRelatorioWhatsApp() {
         let linhas = [];
         linhas.push(`*📊 RELATÓRIO - ${currentDate} - ${currentTurno === 'manha' ? 'MANHÃ' : 'NOITE'}*`);
@@ -911,7 +982,7 @@
     function apagarTudo() {
         const senha = prompt("Digite a senha para apagar TODOS os dados deste turno:");
         if (senha === "Heimer245") {
-            if (confirm(`Isso vai apagar todos os pedidos, motoqueiros, caixa e retiradas do dia ${currentDate} turno ${currentTurno}. Não pode ser desfeito. Confirmar?`)) {
+            if (confirm(`Apagar ${currentDate} ${currentTurno}?`)) {
                 motoqueiros = [];
                 todosPedidos = [];
                 config = { caixaInicial: 0, retiradas: [] };
@@ -920,17 +991,13 @@
                 atualizarInterfaceCompleta();
                 alert("Dados apagados!");
             }
-        } else if (senha !== null) {
-            alert("Senha incorreta!");
-        }
+        } else if (senha !== null) alert("Senha incorreta!");
     }
     
     function atualizarQtdeMotos() {
         let novaQtde = parseInt(document.getElementById('qtdeMotosAtivos').value);
         if (isNaN(novaQtde)) novaQtde = 5;
         novaQtde = Math.min(15, Math.max(1, novaQtde));
-        // Manter os que já existem com mesmo id, adicionar novos se necessário
-        const atuais = motoqueiros.filter(m => m.id <= novaQtde);
         const novos = [];
         for (let i = 1; i <= novaQtde; i++) {
             const existente = motoqueiros.find(m => m.id === i);
@@ -965,7 +1032,6 @@
         atualizarSelectMotoqueiros();
     }
     
-    // Controle de data e turno
     function mudarData(deltaDias) {
         const data = new Date(currentDate);
         data.setDate(data.getDate() + deltaDias);
@@ -1031,7 +1097,6 @@
     }
     
     document.addEventListener('DOMContentLoaded', () => {
-        // Configurar data atual no input
         const today = new Date().toISOString().slice(0,10);
         currentDate = today;
         document.getElementById('dataSelecionada').value = today;
