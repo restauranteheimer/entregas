@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Gestão de Entregas - Corrigido</title>
+    <title>Gestão de Entregas - Drag & Drop</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
         
@@ -91,14 +91,17 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            cursor: pointer;
+            cursor: grab;
             transition: all 0.2s;
             border-left: 5px solid #f59e0b;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             color: var(--text);
+            user-select: none;
         }
+        .pedido-card:active { cursor: grabbing; }
+        .pedido-card.dragging { opacity: 0.5; cursor: grabbing; }
         .pedido-card:hover { transform: translateX(4px); background: var(--pedido-pendente); }
-        .pedido-card.selecionado { background: #2563eb; color: white; border-left-color: #1e3a8a; }
+        .pedido-card.selecionado { background: #2563eb; color: white; border-left-color: #1e3a8a; cursor: grab; }
         .pedido-card.selecionado .pedido-valor { color: #e0f2fe; }
         .pedido-card.pendente { background: var(--pedido-pendente); border-left-color: #f59e0b; }
         .pedido-card.multiplo { background: var(--pedido-multiplo); border-left-color: #ec4899; }
@@ -117,7 +120,9 @@
             border: 2px solid var(--border);
             text-align: center;
             color: var(--text);
+            position: relative;
         }
+        .moto-card.drag-over { border-color: #3b82f6; background: #eff6ff; transform: scale(1.02); }
         .moto-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .moto-card.selecionado { border-color: #3b82f6; background: #eff6ff; color: #1e293b; }
         body.dark .moto-card.selecionado { background: #3b82f6; color: white; }
@@ -308,8 +313,9 @@
             <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
                 <button id="btnSelecionarTodos" class="btn-small">Selecionar todos</button>
                 <button id="btnLimparSelecao" class="btn-small" style="background:#64748b;">Limpar seleção</button>
-                <button id="btnAssociarSelecionados" class="btn-small btn-success">🔗 Associar</button>
+                <button id="btnAssociarSelecionados" class="btn-small btn-success">🔗 Associar (múltiplos)</button>
             </div>
+            <div style="margin-top: 8px; font-size:0.7rem; color:#64748b;">💡 Dica: Arraste um pedido para o card do motoqueiro</div>
         </div>
 
         <div class="card">
@@ -321,7 +327,7 @@
                 </div>
             </div>
             <div id="motosContainer" class="motos-grid"></div>
-            <div style="margin-top: 12px; font-size:0.7rem; color:#64748b;">* Clique para selecionar | ✏️ Duplo clique no nome para editar</div>
+            <div style="margin-top: 12px; font-size:0.7rem; color:#64748b;">* Clique para selecionar | ✏️ Duplo clique no nome para editar<br>📌 Arraste pedidos para este card</div>
         </div>
 
         <div class="card">
@@ -441,7 +447,6 @@
         document.getElementById('firebaseStatus').innerHTML = '❌ Offline (local)';
     }
 
-    // Dados iniciais
     const dadosIniciais = {
         pendentes: [
             { numero: "1436", valor: 0, pagamento: "online" },
@@ -520,7 +525,7 @@
         motoqueiros = novos;
     }
 
-    function getStorageKey() { return `entregas_final_v8_${currentDate}_${currentTurno}`; }
+    function getStorageKey() { return `entregas_drag_drop_${currentDate}_${currentTurno}`; }
     function showSaveStatus(msg, isError) {
         let el = document.getElementById('saveStatus');
         el.innerHTML = msg;
@@ -571,8 +576,6 @@
             motoqueiros = [];
             todosPedidos = [];
             config = { caixaInicial: 0, despesas: [] };
-            
-            // Adicionar dados iniciais
             dadosIniciais.pendentes.forEach(p => {
                 todosPedidos.push({
                     id: Date.now() + "-" + Math.random().toString(36).substr(2,6),
@@ -639,6 +642,61 @@
         return multiplos;
     }
 
+    // ASSOCIAR PEDIDO VIA DRAG AND DROP
+    function associarPedidoPorDrag(pedidoId, motoqueiroId) {
+        const pedido = todosPedidos.find(p => p.id === pedidoId);
+        if (!pedido || pedido.status !== 'pendente') return false;
+        
+        pedido.status = 'concluido';
+        pedido.motoqueiroId = motoqueiroId;
+        pedido.dataConclusao = new Date().toLocaleString();
+        
+        salvarDados();
+        atualizarInterfaceCompleta();
+        playBeep();
+        
+        const moto = motoqueiros.find(m => m.id === motoqueiroId);
+        showAlert(`✅ Pedido #${pedido.numero} associado ao motoqueiro ${moto?.nome}!`, 'success');
+        return true;
+    }
+
+    function setupDragAndDrop() {
+        // Configurar elementos arrastáveis
+        const draggables = document.querySelectorAll('.pedido-card[draggable="true"]');
+        draggables.forEach(draggable => {
+            draggable.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', draggable.dataset.id);
+                draggable.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'copy';
+            });
+            draggable.addEventListener('dragend', (e) => {
+                draggable.classList.remove('dragging');
+            });
+        });
+        
+        // Configurar elementos que recebem drop
+        const dropTargets = document.querySelectorAll('.moto-card');
+        dropTargets.forEach(target => {
+            target.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+                target.classList.add('drag-over');
+            });
+            target.addEventListener('dragleave', (e) => {
+                target.classList.remove('drag-over');
+            });
+            target.addEventListener('drop', (e) => {
+                e.preventDefault();
+                target.classList.remove('drag-over');
+                const pedidoId = e.dataTransfer.getData('text/plain');
+                const motoqueiroId = parseInt(target.dataset.id);
+                if (pedidoId && motoqueiroId) {
+                    associarPedidoPorDrag(pedidoId, motoqueiroId);
+                }
+            });
+        });
+    }
+
     function buscarPedido() {
         const numero = document.getElementById('buscaNumero').value.trim();
         const resultDiv = document.getElementById('resultadoBusca');
@@ -695,7 +753,7 @@
             let classeExtra = 'pendente';
             if (numerosMultiplos.has(ped.numero)) classeExtra = 'multiplo';
             return `
-                <div class="pedido-card ${classeExtra} ${pedidosSelecionados.has(ped.id) ? 'selecionado' : ''}" data-id="${ped.id}" onclick="toggleSelecionarPedido('${ped.id}')">
+                <div class="pedido-card ${classeExtra} ${pedidosSelecionados.has(ped.id) ? 'selecionado' : ''}" data-id="${ped.id}" draggable="true" ondragstart="dragStart(event)" ondragend="dragEnd(event)">
                     <div class="pedido-numero">#${ped.numero}</div>
                     <div class="pedido-valor">${ped.valor > 0 ? formatarMoeda(ped.valor) : '—'}</div>
                     <div style="display: flex; gap: 4px;">
@@ -706,6 +764,7 @@
                 </div>
             `;
         }).join('');
+        setupDragAndDrop();
     }
 
     function renderizarPedidosConcluidos() {
@@ -773,6 +832,7 @@
             };
             container.appendChild(card);
         });
+        setupDragAndDrop();
     }
 
     window.toggleSelecionarPedido = function(id) {
@@ -802,6 +862,7 @@
         motoqueiroSelecionado = null;
         salvarDados();
         atualizarInterfaceCompleta();
+        playBeep();
         showAlert(`✅ ${pedidosSelecionados.size} pedido(s) associado(s) ao motoqueiro ${motoNome}!`, 'success');
     }
 
@@ -924,7 +985,6 @@
     }
     function fecharModalAcertos() { document.getElementById('modalAcertosMoto').style.display = 'none'; }
 
-    // DESPESAS - CORRIGIDO
     function renderizarDespesas() {
         const div = document.getElementById('despesasLista');
         if (!config.despesas || config.despesas.length === 0) { 
@@ -963,7 +1023,6 @@
         showAlert(`✅ Despesa de ${formatarMoeda(val)} adicionada!`, 'success');
     }
 
-    // CAIXA - CORRIGIDO
     function salvarCaixaInicial() {
         let num = parseValor(document.getElementById('caixaInicial').value);
         if (isNaN(num)) num = 0;
@@ -975,10 +1034,8 @@
     }
 
     function conferirCaixa() {
-        // Garantir que config.despesas existe
         if (!config.despesas) config.despesas = [];
         
-        // Vendas em DINHEIRO (apenas pedidos concluídos com pagamento "dinheiro")
         let vendasDinheiro = 0;
         todosPedidos.forEach(ped => {
             if (ped.status === 'concluido' && ped.pagamento === 'dinheiro') {
@@ -986,13 +1043,8 @@
             }
         });
         
-        // Total que os motoqueiros pegaram do caixa
         let totalPegouCaixa = motoqueiros.reduce((s,m) => s + (m.acertos?.retiradaCaixa || 0), 0);
-        
-        // Total de despesas/retiradas
         let totalDespesas = config.despesas.reduce((s,d) => s + (d.valor || 0), 0);
-        
-        // Fórmula: Caixa Esperado = Vendas + Início - Despesas - PegouCaixa
         let caixaEsperado = vendasDinheiro + config.caixaInicial - totalDespesas - totalPegouCaixa;
         let caixaReal = parseValor(document.getElementById('caixaFinalReal').value);
         let falta = caixaEsperado - caixaReal;
@@ -1020,7 +1072,6 @@
 
     function gerarRelatorioWhatsApp() {
         let lines = [`*📊 FECHAMENTO DE CAIXA - ${currentDate} - ${currentTurno === 'manha' ? 'MANHÃ' : 'NOITE'}*`, ""];
-        
         lines.push("*👤 MOTOQUEIROS*");
         motoqueiros.filter(m => m.ativo && m.entregas > 0).forEach(m => {
             let ac = m.acertos;
@@ -1032,7 +1083,6 @@
             lines.push(`🥤 Sucos: ${beb.suco} | Latas: ${beb.lata} | 1L: ${beb.litro}`);
             lines.push("");
         });
-        
         let vendasDinheiro = 0;
         todosPedidos.forEach(ped => {
             if (ped.status === 'concluido' && ped.pagamento === 'dinheiro') {
