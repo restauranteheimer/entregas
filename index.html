@@ -3,18 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Gestão de Entregas - Completa</title>
+    <title>Gestão de Entregas - Com Busca</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
-        body { background: #f0f2f5; padding: 20px; }
+        
+        :root {
+            --bg: #f0f2f5;
+            --card-bg: white;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --pedido-bg: #fff;
+            --pedido-pendente: #fef3c7;
+            --pedido-multiplo: #fce7f3;
+            --pedido-cancelado: #f3f4f6;
+            --moto-bg: #f8fafc;
+            --status-bg: #fff;
+            --input-bg: white;
+            --btn-primary: #3b82f6;
+        }
+        
+        body.dark {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f1f5f9;
+            --border: #334155;
+            --pedido-bg: #1e293b;
+            --pedido-pendente: #422006;
+            --pedido-multiplo: #4c0519;
+            --pedido-cancelado: #1f2937;
+            --moto-bg: #0f172a;
+            --status-bg: #1e293b;
+            --input-bg: #334155;
+        }
+        
+        body { background: var(--bg); padding: 20px; transition: all 0.3s; }
         .app { max-width: 1600px; margin: 0 auto; }
         
-        .status-bar { background: #fff; padding: 8px 16px; border-radius: 40px; display: inline-block; margin-bottom: 16px; font-size: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .status-bar { background: var(--status-bg); padding: 8px 16px; border-radius: 40px; display: inline-block; margin-bottom: 16px; font-size: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: var(--text); }
         .status-online { color: #16a34a; font-weight: bold; }
         .status-offline { color: #dc2626; font-weight: bold; }
         
-        .card { background: white; border-radius: 24px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .card h2 { font-size: 1.3rem; margin-bottom: 16px; color: #1e293b; display: flex; align-items: center; gap: 8px; }
+        .card { background: var(--card-bg); border-radius: 24px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+        .card h2 { font-size: 1.3rem; margin-bottom: 16px; color: var(--text); display: flex; align-items: center; gap: 8px; }
         
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
@@ -22,7 +52,7 @@
         .pedidos-lista { display: flex; flex-direction: column; gap: 10px; max-height: 600px; overflow-y: auto; padding-right: 8px; }
         
         .pedido-card {
-            background: #fff;
+            background: var(--pedido-bg);
             border-radius: 16px;
             padding: 14px 18px;
             display: flex;
@@ -32,60 +62,119 @@
             transition: all 0.2s;
             border-left: 5px solid #f59e0b;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            color: var(--text);
         }
-        .pedido-card:hover { transform: translateX(4px); background: #fef3c7; }
+        .pedido-card:hover { transform: translateX(4px); background: var(--pedido-pendente); }
         .pedido-card.selecionado { background: #3b82f6; color: white; border-left-color: #1e3a8a; }
-        .pedido-card.selecionado .pedido-valor { color: #e0f2fe; }
-        .pedido-card.pendente { background: #fef3c7; border-left-color: #f59e0b; }
-        .pedido-card.repetido { background: #fee2e2; border-left-color: #ef4444; }
-        .pedido-card.cancelado { background: #f3f4f6; border-left-color: #9ca3af; opacity: 0.6; text-decoration: line-through; cursor: default; }
-        .pedido-card.cancelado:hover { transform: none; background: #f3f4f6; }
+        .pedido-card.pendente { background: var(--pedido-pendente); border-left-color: #f59e0b; }
+        .pedido-card.multiplo { background: var(--pedido-multiplo); border-left-color: #ec4899; }
+        .pedido-card.cancelado { background: var(--pedido-cancelado); border-left-color: #9ca3af; opacity: 0.6; text-decoration: line-through; cursor: not-allowed; }
+        .pedido-card.cancelado:hover { transform: none; background: var(--pedido-cancelado); }
         
         .pedido-numero { font-weight: 800; font-size: 1.3rem; }
         .pedido-valor { font-size: 0.9rem; font-weight: 600; color: #16a34a; }
         
-        .motos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+        .motos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
         .moto-card {
-            background: #f8fafc;
+            background: var(--moto-bg);
             border-radius: 20px;
             padding: 12px;
             cursor: pointer;
             transition: all 0.2s;
-            border: 2px solid #e2e8f0;
+            border: 2px solid var(--border);
             text-align: center;
+            color: var(--text);
         }
         .moto-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .moto-card.selecionado { border-color: #3b82f6; background: #eff6ff; }
-        .moto-nome { font-weight: 800; font-size: 1rem; cursor: pointer; padding: 4px 8px; border-radius: 12px; display: inline-block; background: #e2e8f0; transition: 0.1s; }
+        .moto-card.selecionado { border-color: #3b82f6; background: #eff6ff; color: #1e293b; }
+        body.dark .moto-card.selecionado { background: #3b82f6; color: white; }
+        .moto-nome { font-weight: 800; font-size: 1rem; cursor: pointer; padding: 4px 8px; border-radius: 12px; display: inline-block; background: #e2e8f0; transition: 0.1s; color: #1e293b; }
         .moto-nome:hover { background: #cbd5e1; }
         .moto-entregas { font-size: 1.5rem; font-weight: 800; color: #3b82f6; margin: 8px 0; }
         .moto-valor { font-size: 0.8rem; color: #64748b; }
+        .moto-acertos {
+            font-size: 0.7rem;
+            background: #eef2ff;
+            padding: 6px;
+            border-radius: 12px;
+            margin-top: 8px;
+            text-align: left;
+            color: #1e293b;
+        }
+        body.dark .moto-acertos { background: #334155; color: #f1f5f9; }
+        .acerto-item { display: flex; justify-content: space-between; padding: 2px 0; }
+        
+        /* Busca */
+        .busca-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 60px;
+            border: 1px solid var(--border);
+        }
+        .busca-container input {
+            flex: 3;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            font-size: 1rem;
+            background: var(--input-bg);
+            color: var(--text);
+        }
+        .busca-container button {
+            flex: 1;
+            background: #3b82f6;
+        }
+        .resultado-busca {
+            margin-top: 12px;
+            padding: 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            animation: fadeIn 0.3s;
+        }
+        .resultado-sucesso { background: #d1fae5; color: #065f46; border-left: 5px solid #10b981; }
+        .resultado-alerta { background: #fef3c7; color: #92400e; border-left: 5px solid #f59e0b; }
+        .resultado-erro { background: #fee2e2; color: #991b1b; border-left: 5px solid #ef4444; }
+        body.dark .resultado-sucesso { background: #064e3b; color: #d1fae5; }
+        body.dark .resultado-alerta { background: #78350f; color: #fef3c7; }
+        body.dark .resultado-erro { background: #7f1d1d; color: #fee2e2; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         
         .btn-success { background: #22c55e; }
         .btn-success:hover { background: #16a34a; }
         .btn-danger { background: #ef4444; }
         .btn-danger:hover { background: #dc2626; }
-        .btn-warning { background: #f59e0b; }
-        .btn-warning:hover { background: #d97706; }
         .btn-small { padding: 6px 12px; font-size: 0.75rem; width: auto; }
         .btn-wa { background: #25D366; }
         .btn-wa:hover { background: #128C7E; }
+        .btn-edit { background: #3b82f6; }
+        .btn-edit:hover { background: #2563eb; }
+        .btn-night { background: #8b5cf6; }
+        .btn-night:hover { background: #7c3aed; }
         
         .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
         .form-group { flex: 1; min-width: 150px; }
-        .form-group label { display: block; font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: #475569; }
-        .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 16px; font-size: 0.9rem; }
-        
-        .retirada-item { background: #f9fafb; padding: 10px; border-radius: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .form-group label { display: block; font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+        .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 16px; font-size: 0.9rem; background: var(--input-bg); color: var(--text); }
         
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: white; padding: 24px; border-radius: 32px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal-content { background: var(--card-bg); padding: 24px; border-radius: 32px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; color: var(--text); }
         .close-modal { float: right; font-size: 28px; cursor: pointer; }
         
-        .date-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; background: white; padding: 12px 20px; border-radius: 40px; }
+        .date-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; background: var(--card-bg); padding: 12px 20px; border-radius: 40px; border: 1px solid var(--border); }
         .turno-selector { display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 40px; }
         .turno-btn { background: transparent; color: #1e293b; padding: 6px 20px; width: auto; box-shadow: none; }
         .turno-btn.active { background: #3b82f6; color: white; }
+        body.dark .turno-selector { background: #334155; }
+        body.dark .turno-btn { color: #f1f5f9; }
+        body.dark .turno-btn.active { background: #3b82f6; color: white; }
+        
+        .caixa-resumo { background: #f1f5f9; border-radius: 16px; padding: 12px; margin-top: 12px; color: #1e293b; }
+        body.dark .caixa-resumo { background: #334155; color: #f1f5f9; }
+        
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
         
         @media (max-width: 1000px) { .grid-3 { grid-template-columns: 1fr; } }
         @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
@@ -95,9 +184,12 @@
 </head>
 <body>
 <div class="app">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-        <h1>🛵 Gestão de Entregas</h1>
-        <button id="btnApagarTudo" class="btn-small" style="background:#991b1b;">🗑️ Apagar tudo</button>
+    <div class="header-actions">
+        <h1 style="color: var(--text);">🛵 Gestão de Entregas</h1>
+        <div style="display: flex; gap: 12px;">
+            <button id="btnModoNoturno" class="btn-small btn-night">🌙 Modo Noturno</button>
+            <button id="btnApagarTudo" class="btn-small" style="background:#991b1b;">🗑️ Apagar tudo</button>
+        </div>
     </div>
     <div class="status-bar">
         🔌 Firebase: <span id="firebaseStatus">Verificando...</span>
@@ -107,8 +199,8 @@
     <div class="date-controls">
         <button id="btnDiaAnterior">◀ Dia anterior</button>
         <div style="display: flex; align-items: center; gap: 12px;">
-            <span>📅 Data:</span>
-            <input type="date" id="dataSelecionada" style="width: auto;">
+            <span style="color: var(--text);">📅 Data:</span>
+            <input type="date" id="dataSelecionada" style="width: auto; background: var(--input-bg); color: var(--text); border-color: var(--border);">
             <div class="turno-selector">
                 <button id="btnTurnoManha" class="turno-btn active">🌅 Manhã</button>
                 <button id="btnTurnoNoite" class="turno-btn">🌙 Noite</button>
@@ -117,7 +209,13 @@
         <button id="btnDiaProximo">Próximo dia ▶</button>
     </div>
 
-    <!-- Formulário rápido -->
+    <!-- BARRA DE BUSCA -->
+    <div class="busca-container">
+        <input type="text" id="buscaNumero" placeholder="🔍 Digite o número do pedido para buscar..." class="numero-only">
+        <button id="btnBuscarPedido" class="btn-small">Buscar Pedido</button>
+    </div>
+    <div id="resultadoBusca" style="display: none;"></div>
+
     <div class="card">
         <h2>📝 Novo Pedido</h2>
         <div class="form-row">
@@ -136,9 +234,7 @@
         <button id="btnRegistrar">➕ Adicionar Pedido</button>
     </div>
 
-    <!-- TRÊS COLUNAS -->
     <div class="grid-3">
-        <!-- Coluna 1: Pedidos Pendentes -->
         <div class="card">
             <h2>🟡 Pedidos Pendentes <span id="qtdPendentes" style="font-size:0.9rem; background:#f59e0b; color:white; padding:2px 10px; border-radius:20px;">0</span></h2>
             <div id="pedidosPendentesLista" class="pedidos-lista"></div>
@@ -149,7 +245,6 @@
             </div>
         </div>
 
-        <!-- Coluna 2: Motoqueiros -->
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
                 <h2 style="margin:0;">🛵 Motoqueiros</h2>
@@ -162,31 +257,21 @@
             <div style="margin-top: 12px; font-size:0.7rem; color:#64748b;">* Clique para selecionar | ✏️ Duplo clique no nome para editar</div>
         </div>
 
-        <!-- Coluna 3: Caixa e Retiradas -->
         <div class="card">
-            <h2>💰 Caixa (apenas DINHEIRO)</h2>
+            <h2>💰 Controle de Caixa</h2>
             <div class="form-row">
-                <div class="form-group"><label>Valor inicial</label><input type="text" id="caixaInicial" class="valor-input" placeholder="0,00"></div>
+                <div class="form-group"><label>Valor inicial do caixa</label><input type="text" id="caixaInicial" class="valor-input" placeholder="0,00"></div>
                 <div class="form-group"><label>Valor real final</label><input type="text" id="caixaFinalReal" class="valor-input" placeholder="0,00"></div>
             </div>
             <div class="form-row">
                 <div class="form-group"><button id="btnSalvarCaixa" class="btn-small">Salvar inicial</button></div>
-                <div class="form-group"><button id="btnConferirCaixa" class="btn-small">Conferir</button></div>
+                <div class="form-group"><button id="btnConferirCaixa" class="btn-small">Conferir caixa</button></div>
             </div>
-            
-            <h3>📤 Retiradas</h3>
-            <div id="retiradasLista"></div>
-            <div class="form-row" style="margin-top: 8px;">
-                <input type="text" id="novaRetiradaValor" placeholder="Valor R$" class="valor-input" style="flex:1;">
-                <input type="text" id="novaRetiradaObs" placeholder="Motivo" style="flex:2;">
-                <button id="btnAddRetirada" class="btn-small">+</button>
-            </div>
-            <div id="resultadoConferencia" style="margin-top: 12px; padding: 10px; border-radius: 16px; background: #f1f5f9; font-size:0.8rem;"></div>
+            <div id="resultadoConferencia" class="caixa-resumo"></div>
             <button id="btnRelatorioWhatsApp" class="btn-wa" style="margin-top: 12px;">📱 Relatório WhatsApp</button>
         </div>
     </div>
 
-    <!-- Pedidos Concluídos e Cancelados -->
     <div class="grid-2">
         <div class="card">
             <h2>✅ Pedidos Concluídos</h2>
@@ -199,7 +284,6 @@
     </div>
 </div>
 
-<!-- Modal de edição de pedido -->
 <div id="modalEditarPedido" class="modal">
     <div class="modal-content">
         <span class="close-modal">&times;</span>
@@ -216,7 +300,7 @@
                 <option value="online">Online</option>
             </select>
         </div>
-        <div class="form-group"><label>Motoqueiro (opcional)</label>
+        <div class="form-group"><label>Motoqueiro</label>
             <select id="editMotoqueiro">
                 <option value="">-- Selecione --</option>
             </select>
@@ -228,8 +312,26 @@
     </div>
 </div>
 
+<div id="modalAcertosMoto" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h3 id="acertosTitulo">✏️ Editar Acertos</h3>
+        <input type="hidden" id="acertosMotoId">
+        <div class="form-group"><label>💰 Pegou dinheiro do caixa (R$)</label><input type="text" id="acertosRetiradaCaixa" class="valor-input" placeholder="0,00"></div>
+        <div class="form-group"><label>📲 Pix Moto recebido (R$)</label><input type="text" id="acertosPixMoto" class="valor-input" placeholder="0,00"></div>
+        <div class="form-group"><label>🥤 Sucos (quantidade)</label><input type="number" id="acertosSucos" value="0" style="width:100%"></div>
+        <div class="form-group"><label>🥫 Latas/Refrigerante (quantidade)</label><input type="number" id="acertosLatas" value="0" style="width:100%"></div>
+        <div class="form-group"><label>🧃 1 Litro (quantidade)</label><input type="number" id="acertosLitros" value="0" style="width:100%"></div>
+        <div class="form-group"><label>💰 Valor total das bebidas (R$)</label><input type="text" id="acertosBebidasValor" class="valor-input" placeholder="0,00"></div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button id="btnSalvarAcertos" class="btn-small btn-success">Salvar acertos</button>
+            <button onclick="fecharModalAcertos()" class="btn-small">Cancelar</button>
+        </div>
+    </div>
+</div>
+
 <script>
-    // ---------- FIREBASE ----------
+    // Firebase Config
     const firebaseConfig = {
         apiKey: "AIzaSyBLmlqiRUlatPCpqYDSY62Bj993KwVp_-E",
         authDomain: "newagent-222f6.firebaseapp.com",
@@ -250,10 +352,22 @@
         document.getElementById('firebaseStatus').innerHTML = '❌ Offline (local)';
     }
 
-    // ---------- ESTRUTURA ----------
+    // Modo Noturno
+    function toggleModoNoturno() {
+        document.body.classList.toggle('dark');
+        const btn = document.getElementById('btnModoNoturno');
+        btn.innerHTML = document.body.classList.contains('dark') ? '☀️ Modo Claro' : '🌙 Modo Noturno';
+        localStorage.setItem('modoNoturno', document.body.classList.contains('dark'));
+    }
+    if (localStorage.getItem('modoNoturno') === 'true') {
+        document.body.classList.add('dark');
+        document.getElementById('btnModoNoturno').innerHTML = '☀️ Modo Claro';
+    }
+
+    // Estrutura
     let motoqueiros = [];
     let todosPedidos = [];
-    let config = { caixaInicial: 0, retiradas: [] };
+    let config = { caixaInicial: 0 };
     let currentDate = new Date().toISOString().slice(0,10);
     let currentTurno = "manha";
     let isLoading = false;
@@ -282,7 +396,7 @@
         motoqueiros = novos;
     }
 
-    function getStorageKey() { return `entregas_completa_${currentDate}_${currentTurno}`; }
+    function getStorageKey() { return `entregas_final_v3_${currentDate}_${currentTurno}`; }
     function showSaveStatus(msg, isError) {
         let el = document.getElementById('saveStatus');
         el.innerHTML = msg;
@@ -328,11 +442,11 @@
         if (dados) {
             motoqueiros = dados.motoqueiros || [];
             todosPedidos = dados.todosPedidos || [];
-            config = dados.config || { caixaInicial: 0, retiradas: [] };
+            config = dados.config || { caixaInicial: 0 };
         } else {
             motoqueiros = [];
             todosPedidos = [];
-            config = { caixaInicial: 0, retiradas: [] };
+            config = { caixaInicial: 0 };
         }
         if (motoqueiros.length === 0) inicializarMotoqueiros(5);
         motoqueiros.forEach(m => { 
@@ -366,25 +480,90 @@
         });
     }
 
-    // Verificar números repetidos (mesmo número em mais de um motoqueiro)
-    function getNumerosRepetidos() {
-        const concluidos = todosPedidos.filter(p => p.status === 'concluido' && p.motoqueiroId);
-        const porNumero = {};
-        concluidos.forEach(p => {
-            if (!porNumero[p.numero]) porNumero[p.numero] = new Set();
-            porNumero[p.numero].add(p.motoqueiroId);
-        });
-        const repetidos = new Set();
-        for (let num in porNumero) {
-            if (porNumero[num].size > 1) repetidos.add(num);
+    function getNumerosMultiplos() {
+        const pendentes = todosPedidos.filter(p => p.status === 'pendente');
+        const contagem = {};
+        pendentes.forEach(p => { contagem[p.numero] = (contagem[p.numero] || 0) + 1; });
+        const multiplos = new Set();
+        for (let num in contagem) {
+            if (contagem[num] > 1) multiplos.add(num);
         }
-        return repetidos;
+        return multiplos;
+    }
+
+    // FUNÇÃO DE BUSCAR PEDIDO
+    function buscarPedido() {
+        const numero = document.getElementById('buscaNumero').value.trim();
+        const resultDiv = document.getElementById('resultadoBusca');
+        
+        if (!numero) {
+            resultDiv.style.display = 'none';
+            return;
+        }
+        
+        // Buscar em todos os pedidos (pendentes, concluídos e cancelados)
+        const pedidosEncontrados = todosPedidos.filter(p => p.numero === numero);
+        
+        if (pedidosEncontrados.length === 0) {
+            resultDiv.innerHTML = `
+                <div class="resultado-busca resultado-erro">
+                    ❌ Nenhum pedido encontrado com o número #${numero}
+                </div>
+            `;
+            resultDiv.style.display = 'block';
+            return;
+        }
+        
+        let html = `<div class="resultado-busca">`;
+        for (const ped of pedidosEncontrados) {
+            let statusText = '';
+            let statusClass = '';
+            let motoNome = '';
+            
+            if (ped.status === 'pendente') {
+                statusText = '🟡 PENDENTE';
+                statusClass = 'resultado-alerta';
+                motoNome = 'Nenhum motoqueiro atribuído';
+            } else if (ped.status === 'concluido') {
+                statusText = '✅ CONCLUÍDO';
+                statusClass = 'resultado-sucesso';
+                const moto = motoqueiros.find(m => m.id === ped.motoqueiroId);
+                motoNome = moto ? moto.nome : 'Motoqueiro não encontrado';
+            } else {
+                statusText = '❌ CANCELADO';
+                statusClass = 'resultado-erro';
+                motoNome = `Motivo: ${ped.motivo || 'Cancelado'}`;
+            }
+            
+            html += `<div class="${statusClass}" style="margin-bottom: 8px; padding: 12px; border-radius: 16px;">
+                        <strong>📦 Pedido #${ped.numero}</strong><br>
+                        📍 Status: ${statusText}<br>
+                        🛵 Motoqueiro: ${motoNome}<br>
+                        💰 Valor: ${ped.valor > 0 ? formatarMoeda(ped.valor) : 'Sem valor'}<br>
+                        💳 Pagamento: ${ped.pagamento}<br>
+                        🕐 Data: ${ped.data}
+                     </div>`;
+        }
+        html += `</div>`;
+        
+        resultDiv.innerHTML = html;
+        resultDiv.style.display = 'block';
+        
+        // Scroll suave até o resultado
+        resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        // Esconder após 10 segundos
+        setTimeout(() => {
+            if (resultDiv.style.display === 'block') {
+                resultDiv.style.display = 'none';
+            }
+        }, 10000);
     }
 
     function renderizarPedidosPendentes() {
         const container = document.getElementById('pedidosPendentesLista');
         const pendentes = todosPedidos.filter(p => p.status === 'pendente');
-        const numerosRepetidos = getNumerosRepetidos();
+        const numerosMultiplos = getNumerosMultiplos();
         
         document.getElementById('qtdPendentes').innerText = pendentes.length;
         if (pendentes.length === 0) {
@@ -393,13 +572,13 @@
         }
         container.innerHTML = pendentes.map(ped => {
             let classeExtra = 'pendente';
-            if (numerosRepetidos.has(ped.numero)) classeExtra = 'repetido';
+            if (numerosMultiplos.has(ped.numero)) classeExtra = 'multiplo';
             return `
                 <div class="pedido-card ${classeExtra} ${pedidosSelecionados.has(ped.id) ? 'selecionado' : ''}" data-id="${ped.id}" onclick="toggleSelecionarPedido('${ped.id}')">
                     <div class="pedido-numero">#${ped.numero}</div>
                     <div class="pedido-valor">${ped.valor > 0 ? formatarMoeda(ped.valor) : '—'}</div>
                     <div style="display: flex; gap: 4px;">
-                        <button class="btn-small" style="background:#3b82f6; padding:4px 8px;" onclick="event.stopPropagation(); editarPedido('${ped.id}')">✏️</button>
+                        <button class="btn-small btn-edit" style="padding:4px 8px;" onclick="event.stopPropagation(); editarPedido('${ped.id}')">✏️</button>
                         <button class="btn-small btn-danger" style="padding:4px 8px;" onclick="event.stopPropagation(); cancelarPedido('${ped.id}')">❌</button>
                     </div>
                 </div>
@@ -416,7 +595,7 @@
         }
         container.innerHTML = concluidos.map(ped => {
             const moto = motoqueiros.find(m => m.id === ped.motoqueiroId);
-            return `<span style="background:#e8f5e9; padding:4px 12px; border-radius:20px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;">#${ped.numero} → ${moto ? moto.nome : '?'} <button onclick="editarPedido('${ped.id}')" style="background:#3b82f6; padding:2px 6px; font-size:0.6rem;">✏️</button></span>`;
+            return `<span style="background:#e8f5e9; padding:4px 12px; border-radius:20px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px; color:#1e293b;">#${ped.numero} → ${moto ? moto.nome : '?'} <button onclick="editarPedido('${ped.id}')" style="background:#3b82f6; padding:2px 6px; font-size:0.6rem;">✏️</button></span>`;
         }).join('');
     }
 
@@ -428,7 +607,7 @@
             return;
         }
         container.innerHTML = cancelados.map(ped => {
-            return `<span style="background:#fee2e2; padding:4px 12px; border-radius:20px; font-size:0.75rem; text-decoration:line-through;">#${ped.numero} - ${ped.motivo || 'Cancelado'}</span>`;
+            return `<span style="background:#fee2e2; padding:4px 12px; border-radius:20px; font-size:0.75rem; text-decoration:line-through; color:#1e293b;">#${ped.numero} - ${ped.motivo || 'Cancelado'}</span>`;
         }).join('');
     }
 
@@ -437,19 +616,28 @@
         container.innerHTML = "";
         const ativos = motoqueiros.filter(m => m.ativo);
         ativos.forEach(moto => {
+            const ac = moto.acertos;
+            const beb = ac.bebidas;
             const card = document.createElement('div');
             card.className = `moto-card ${motoqueiroSelecionado === moto.id ? 'selecionado' : ''}`;
             card.setAttribute("data-id", moto.id);
             card.onclick = (e) => {
                 if (e.target.classList.contains('moto-nome')) return;
+                if (e.target.classList.contains('btn-editar-acertos')) return;
                 motoqueiroSelecionado = moto.id;
                 renderizarMotoqueiros();
             };
             card.innerHTML = `
-                <div class="moto-nome" data-id="${moto.id}" title="Duplo clique para editar">✏️ ${moto.nome}</div>
-                <div class="moto-entregas">${moto.entregas}</div>
-                <div class="moto-valor">💰 ${formatarMoeda(moto.valorTotal)}</div>
-                <div style="font-size:0.7rem;">💵 ${formatarMoeda(moto.valoresPorPagamento.dinheiro)} | 📲 ${formatarMoeda(moto.valoresPorPagamento.pix_moto)}</div>
+                <div class="moto-nome" data-id="${moto.id}" title="Duplo clique para editar nome">✏️ ${moto.nome}</div>
+                <div class="moto-entregas">${moto.entregas} entrega${moto.entregas !== 1 ? 's' : ''}</div>
+                <div class="moto-valor">💰 Total: ${formatarMoeda(moto.valorTotal)}</div>
+                <div class="moto-acertos">
+                    <div class="acerto-item"><strong>💵 Dinheiro:</strong> ${formatarMoeda(moto.valoresPorPagamento.dinheiro)}</div>
+                    <div class="acerto-item"><strong>📲 Pix Moto:</strong> ${formatarMoeda(moto.valoresPorPagamento.pix_moto)}</div>
+                    <div class="acerto-item"><strong>💰 Pegou caixa:</strong> ${formatarMoeda(ac.retiradaCaixa)}</div>
+                    <div class="acerto-item"><strong>🥤 Sucos:</strong> ${beb.suco} | <strong>🥫 Latas:</strong> ${beb.lata} | <strong>🧃 1L:</strong> ${beb.litro}</div>
+                </div>
+                <button class="btn-small btn-editar-acertos" style="margin-top:8px; background:#8b5cf6;" onclick="event.stopPropagation(); abrirEditarAcertos(${moto.id})">✏️ Editar acertos</button>
             `;
             const nomeSpan = card.querySelector('.moto-nome');
             nomeSpan.ondblclick = (e) => {
@@ -504,13 +692,22 @@
         alert("Pedidos associados com sucesso!");
     }
 
-    // CRUD de pedidos
+    // Registrar pedido
     function registrarPedido() {
         let numero = document.getElementById('pedidoNumero').value.trim();
         let valor = parseValor(document.getElementById('pedidoValor').value);
         let pagamento = document.getElementById('pedidoPagamento').value;
         if (!numero) { alert("Número do pedido obrigatório"); return; }
         if (numero.length > 8) { alert("Número muito longo"); return; }
+        
+        const cancelados = todosPedidos.filter(p => p.status === 'cancelado' && p.numero === numero);
+        if (cancelados.length > 0) {
+            alert(`❌ Não é possível adicionar o pedido #${numero} pois ele consta na lista de pedidos cancelados!`);
+            document.getElementById('pedidoNumero').value = "";
+            document.getElementById('pedidoNumero').focus();
+            return;
+        }
+        
         const novoId = Date.now() + "-" + Math.random().toString(36).substr(2,6);
         const novoPedido = {
             id: novoId, numero, valor, pagamento,
@@ -531,7 +728,6 @@
         document.getElementById('editNumero').value = ped.numero;
         document.getElementById('editValor').value = ped.valor.toFixed(2).replace('.', ',');
         document.getElementById('editPagamento').value = ped.pagamento;
-        // Preencher select de motoqueiros
         const selectMoto = document.getElementById('editMotoqueiro');
         selectMoto.innerHTML = '<option value="">-- Não alterar --</option>';
         motoqueiros.filter(m => m.ativo).forEach(m => {
@@ -574,9 +770,7 @@
         ped.status = 'cancelado';
         ped.motivo = motivo;
         ped.dataCancelamento = new Date().toLocaleString();
-        // Se o pedido estava associado a um motoqueiro, remover das estatísticas
         if (ped.motoqueiroId) {
-            // As estatísticas serão recalculadas no recalcularTotais()
             ped.motoqueiroId = null;
         }
         salvarDados();
@@ -584,47 +778,47 @@
         alert(`Pedido #${ped.numero} cancelado!`);
     };
 
-    function fecharModalEditar() {
-        document.getElementById('modalEditarPedido').style.display = 'none';
-    }
+    function fecharModalEditar() { document.getElementById('modalEditarPedido').style.display = 'none'; }
 
-    // Retiradas (CORRIGIDO)
-    function renderizarRetiradas() {
-        let div = document.getElementById('retiradasLista');
-        if (!config.retiradas || config.retiradas.length === 0) { 
-            div.innerHTML = "<div style='color:gray;'>Nenhuma retirada</div>"; 
-            return; 
-        }
-        div.innerHTML = config.retiradas.map((r,i) => `
-            <div class="retirada-item">
-                <span><strong>${formatarMoeda(r.valor)}</strong> - ${r.observacao || "sem obs"} <small>${r.data || ""}</small></span>
-                <button class="btn-small btn-danger" onclick="removerRetirada(${i})">Remover</button>
-            </div>
-        `).join('');
+    // Acertos
+    let currentMotoAcertosId = null;
+    
+    function abrirEditarAcertos(motoId) {
+        currentMotoAcertosId = motoId;
+        const moto = motoqueiros.find(m => m.id === motoId);
+        if (!moto) return;
+        document.getElementById('acertosMotoId').value = motoId;
+        document.getElementById('acertosTitulo').innerHTML = `✏️ Editar Acertos - ${moto.nome}`;
+        document.getElementById('acertosRetiradaCaixa').value = moto.acertos.retiradaCaixa.toFixed(2).replace('.', ',');
+        document.getElementById('acertosPixMoto').value = moto.acertos.pixMoto.toFixed(2).replace('.', ',');
+        document.getElementById('acertosSucos').value = moto.acertos.bebidas.suco;
+        document.getElementById('acertosLatas').value = moto.acertos.bebidas.lata;
+        document.getElementById('acertosLitros').value = moto.acertos.bebidas.litro;
+        document.getElementById('acertosBebidasValor').value = moto.acertos.bebidas.valor.toFixed(2).replace('.', ',');
+        document.getElementById('modalAcertosMoto').style.display = 'flex';
     }
-    window.removerRetirada = function(i) { 
-        config.retiradas.splice(i,1); 
-        salvarDados(); 
-        renderizarRetiradas(); 
-        conferirCaixa(); 
-    };
-    function adicionarRetirada() {
-        let val = parseValor(document.getElementById('novaRetiradaValor').value);
-        let obs = document.getElementById('novaRetiradaObs').value.trim();
-        if (val <= 0) { alert("Digite um valor válido maior que zero!"); return; }
-        config.retiradas.push({ 
-            valor: val, 
-            observacao: obs || "Sem observação", 
-            data: new Date().toLocaleString() 
-        });
+    
+    function salvarAcertos() {
+        const motoId = parseInt(document.getElementById('acertosMotoId').value);
+        const moto = motoqueiros.find(m => m.id === motoId);
+        if (!moto) return;
+        moto.acertos.retiradaCaixa = parseValor(document.getElementById('acertosRetiradaCaixa').value);
+        moto.acertos.pixMoto = parseValor(document.getElementById('acertosPixMoto').value);
+        moto.acertos.bebidas = {
+            suco: parseInt(document.getElementById('acertosSucos').value) || 0,
+            lata: parseInt(document.getElementById('acertosLatas').value) || 0,
+            litro: parseInt(document.getElementById('acertosLitros').value) || 0,
+            valor: parseValor(document.getElementById('acertosBebidasValor').value)
+        };
         salvarDados();
-        renderizarRetiradas();
-        document.getElementById('novaRetiradaValor').value = "";
-        document.getElementById('novaRetiradaObs').value = "";
-        conferirCaixa();
-        alert(`✅ Retirada de ${formatarMoeda(val)} adicionada!`);
+        renderizarMotoqueiros();
+        fecharModalAcertos();
+        alert("Acertos salvos com sucesso!");
     }
+    
+    function fecharModalAcertos() { document.getElementById('modalAcertosMoto').style.display = 'none'; }
 
+    // Caixa
     function salvarCaixaInicial() {
         let num = parseValor(document.getElementById('caixaInicial').value);
         if (isNaN(num)) num = 0;
@@ -637,25 +831,29 @@
 
     function conferirCaixa() {
         let totalDin = motoqueiros.reduce((s,m) => s + m.valoresPorPagamento.dinheiro, 0);
-        let totalRet = config.retiradas ? config.retiradas.reduce((s,r) => s + r.valor, 0) : 0;
-        let esperado = config.caixaInicial + totalDin - totalRet;
+        let totalPegouCaixa = motoqueiros.reduce((s,m) => s + m.acertos.retiradaCaixa, 0);
+        let esperado = config.caixaInicial + totalDin - totalPegouCaixa;
         let real = parseValor(document.getElementById('caixaFinalReal').value);
-        let msg = `<strong>Caixa inicial:</strong> ${formatarMoeda(config.caixaInicial)}<br>`;
-        msg += `<strong>Dinheiro recebido:</strong> ${formatarMoeda(totalDin)}<br>`;
-        msg += `<strong>Total retiradas:</strong> ${formatarMoeda(totalRet)}<br>`;
-        msg += `<strong>Caixa esperado:</strong> ${formatarMoeda(esperado)}<br>`;
+        let falta = esperado - real;
+        
+        let msg = `<strong>💰 Caixa inicial:</strong> ${formatarMoeda(config.caixaInicial)}<br>`;
+        msg += `<strong>💵 Dinheiro recebido:</strong> ${formatarMoeda(totalDin)}<br>`;
+        msg += `<strong>📤 Total "Pegou caixa" (motos):</strong> ${formatarMoeda(totalPegouCaixa)}<br>`;
+        msg += `<strong>🧾 Caixa esperado:</strong> ${formatarMoeda(esperado)}<br>`;
         if (!isNaN(real) && real !== 0) {
-            let diff = real - esperado;
-            msg += `<strong>Caixa real:</strong> ${formatarMoeda(real)}<br>`;
-            if (Math.abs(diff) > 10) {
-                msg += `<div style="background:#fee2e2; padding:8px; border-radius:12px; margin-top:8px;">⚠️ Diferença de ${formatarMoeda(Math.abs(diff))} (${diff>0?'acima':'abaixo'})</div>`;
+            msg += `<strong>🔍 Caixa real:</strong> ${formatarMoeda(real)}<br>`;
+            if (Math.abs(falta) > 10) {
+                msg += `<div style="background:#fee2e2; padding:8px; border-radius:12px; margin-top:8px;">⚠️ FALTA NO CAIXA: ${formatarMoeda(falta)}</div>`;
             } else {
-                msg += `<div style="background:#dcfce7; padding:8px; border-radius:12px; margin-top:8px;">✅ Caixa conferido (tolerância R$10)</div>`;
+                msg += `<div style="background:#dcfce7; padding:8px; border-radius:12px; margin-top:8px;">✅ Caixa conferido (dentro da tolerância R$10)</div>`;
             }
+        } else {
+            msg += `<span>🔍 Informe o valor real do caixa para conferência.</span>`;
         }
         document.getElementById('resultadoConferencia').innerHTML = msg;
     }
 
+    // Relatório WhatsApp
     function gerarRelatorioWhatsApp() {
         let lines = [`*📊 RELATÓRIO - ${currentDate} - ${currentTurno === 'manha' ? 'MANHÃ' : 'NOITE'}*`, ""];
         lines.push("*👤 MOTOQUEIROS*");
@@ -664,26 +862,18 @@
             let beb = ac.bebidas;
             lines.push(`*${m.nome}*`);
             lines.push(`📦 Entregas: ${m.entregas}`);
-            lines.push(`💰 Total: ${formatarMoeda(m.valorTotal)}`);
-            lines.push(`💵 Dinheiro: ${formatarMoeda(m.valoresPorPagamento.dinheiro)}`);
             lines.push(`📲 Pix Moto: ${formatarMoeda(m.valoresPorPagamento.pix_moto)}`);
-            if (ac.retiradaCaixa > 0) lines.push(`💰 Pegou caixa: ${formatarMoeda(ac.retiradaCaixa)}`);
-            if (beb.suco || beb.lata || beb.litro) lines.push(`🥤 Bebidas: ${beb.suco} suco, ${beb.lata} lata, ${beb.litro} 1L (R$ ${beb.valor.toFixed(2)})`);
+            lines.push(`💰 Pegou caixa: ${formatarMoeda(ac.retiradaCaixa)}`);
+            lines.push(`🥤 Sucos: ${beb.suco} | Latas: ${beb.lata} | 1L: ${beb.litro}`);
             lines.push("");
         });
-        let pendentes = todosPedidos.filter(p => p.status === 'pendente');
-        if (pendentes.length > 0) {
-            lines.push("*⚠️ PEDIDOS PENDENTES*");
-            pendentes.forEach(p => lines.push(`#${p.numero} - ${p.valor > 0 ? formatarMoeda(p.valor) : 'sem valor'} (${p.pagamento})`));
-            lines.push("");
-        }
         let totalDin = motoqueiros.reduce((s,m) => s + m.valoresPorPagamento.dinheiro, 0);
-        let totalRet = config.retiradas ? config.retiradas.reduce((s,r) => s + r.valor, 0) : 0;
-        let esperado = config.caixaInicial + totalDin - totalRet;
+        let totalPegouCaixa = motoqueiros.reduce((s,m) => s + m.acertos.retiradaCaixa, 0);
+        let esperado = config.caixaInicial + totalDin - totalPegouCaixa;
         lines.push("*💰 RESUMO DO CAIXA*");
         lines.push(`Caixa inicial: ${formatarMoeda(config.caixaInicial)}`);
         lines.push(`Dinheiro recebido: ${formatarMoeda(totalDin)}`);
-        lines.push(`Total retiradas: ${formatarMoeda(totalRet)}`);
+        lines.push(`Total "Pegou caixa": ${formatarMoeda(totalPegouCaixa)}`);
         lines.push(`*Caixa esperado:* ${formatarMoeda(esperado)}`);
         return lines.join("\n");
     }
@@ -707,7 +897,6 @@
         renderizarPedidosConcluidos();
         renderizarPedidosCancelados();
         renderizarMotoqueiros();
-        renderizarRetiradas();
         document.getElementById('caixaInicial').value = formatarMoeda(config.caixaInicial);
         conferirCaixa();
     }
@@ -718,7 +907,7 @@
         if (!confirm(`Apagar TODOS os dados de ${currentDate} - ${currentTurno}?`)) return;
         motoqueiros = [];
         todosPedidos = [];
-        config = { caixaInicial: 0, retiradas: [] };
+        config = { caixaInicial: 0 };
         inicializarMotoqueiros(5);
         pedidosSelecionados.clear();
         motoqueiroSelecionado = null;
@@ -752,11 +941,11 @@
         document.getElementById('dataSelecionada').value = today;
         carregarDados();
         
+        document.getElementById('btnModoNoturno').onclick = toggleModoNoturno;
         document.getElementById('btnRegistrar').onclick = registrarPedido;
         document.getElementById('btnSelecionarTodos').onclick = selecionarTodos;
         document.getElementById('btnLimparSelecao').onclick = limparSelecao;
         document.getElementById('btnAssociarSelecionados').onclick = associarSelecionados;
-        document.getElementById('btnAddRetirada').onclick = adicionarRetirada;
         document.getElementById('btnSalvarCaixa').onclick = salvarCaixaInicial;
         document.getElementById('btnConferirCaixa').onclick = conferirCaixa;
         document.getElementById('btnAtualizarMotos').onclick = atualizarQtdeMotos;
@@ -768,6 +957,13 @@
         document.getElementById('btnTurnoNoite').onclick = () => mudarTurno('noite');
         document.getElementById('dataSelecionada').onchange = (e) => { currentDate = e.target.value; carregarDados(); };
         document.getElementById('btnSalvarEdicao').onclick = salvarEdicao;
+        document.getElementById('btnSalvarAcertos').onclick = salvarAcertos;
+        
+        // Buscar pedido
+        document.getElementById('btnBuscarPedido').onclick = buscarPedido;
+        document.getElementById('buscaNumero').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') buscarPedido();
+        });
         
         document.getElementById('pedidoNumero').addEventListener('keypress', e => { if(e.key === 'Enter') registrarPedido(); });
         document.querySelectorAll('.numero-only').forEach(inp => {
@@ -780,12 +976,19 @@
         });
         
         window.fecharModalEditar = fecharModalEditar;
-        document.querySelectorAll('.close-modal').forEach(btn => {
-            btn.onclick = () => { document.getElementById('modalEditarPedido').style.display = 'none'; };
-        });
-        window.onclick = (e) => { if (e.target === document.getElementById('modalEditarPedido')) fecharModalEditar(); };
+        window.fecharModalAcertos = fecharModalAcertos;
         
-        // Auto-refresh
+        document.querySelectorAll('.close-modal').forEach(btn => {
+            btn.onclick = () => { 
+                document.getElementById('modalEditarPedido').style.display = 'none';
+                document.getElementById('modalAcertosMoto').style.display = 'none';
+            };
+        });
+        window.onclick = (e) => { 
+            if (e.target === document.getElementById('modalEditarPedido')) fecharModalEditar();
+            if (e.target === document.getElementById('modalAcertosMoto')) fecharModalAcertos();
+        };
+        
         setInterval(() => { if (!isLoading) carregarDados(); }, 10000);
     });
 </script>
