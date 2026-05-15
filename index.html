@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Entregas + Contabilidade | Firebase</title>
+    <title>Entregas + Contabilidade | Firestore</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, 'Segoe UI', Roboto, sans-serif; }
         body { background: #eef2f5; padding: 20px; }
@@ -50,6 +50,9 @@
         .turno-selector { display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 40px; }
         .turno-btn { background: transparent; color: #1e293b; padding: 6px 20px; width: auto; box-shadow: none; }
         .turno-btn.active { background: #3b82f6; color: white; }
+        .moto-info { display: flex; gap: 10px; align-items: center; }
+        .moto-info input { width: 100px; }
+        .moto-nome-display { background: #eef2ff; padding: 12px 14px; border-radius: 20px; font-weight: bold; flex: 1; text-align: center; }
         @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } body { padding: 12px; } .date-controls { flex-direction: column; align-items: stretch; } }
     </style>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -79,6 +82,7 @@
         </div>
         <button id="btnDiaProximo">Próximo dia ▶</button>
     </div>
+
     <p style="margin-bottom: 16px;">Clique no motoqueiro para ver relatório | Apenas DINHEIRO entra no caixa</p>
 
     <div class="card">
@@ -86,10 +90,12 @@
         <div class="grid-2">
             <div>
                 <div class="form-group"><label>🔢 Número do pedido</label><input type="text" id="pedidoNumero" placeholder="Ex: 123" class="numero-only"></div>
-                <div class="form-group"><label>🛵 Motoqueiro</label>
-                    <select id="motoqueiroSelect">
-                        <!-- Será preenchido pelo JS com opções fixas -->
-                    </select>
+                <div class="form-group">
+                    <label>🛵 Motoqueiro (número 1 a 15)</label>
+                    <div class="moto-info">
+                        <input type="number" id="motoNumero" min="1" max="15" value="1" step="1" class="numero-only" style="width: 100px;">
+                        <div id="motoNomeDisplay" class="moto-nome-display">Motoqueiro 1</div>
+                    </div>
                 </div>
             </div>
             <div>
@@ -200,9 +206,7 @@
         document.getElementById('firebaseStatus').innerHTML = '❌ Offline (local)';
     }
 
-    // ---------- ESTRUTURA FIXA DE MOTOQUEIROS (BASE) ----------
-    // Criamos um array fixo de 15 motoqueiros. Os dados dinâmicos (nome personalizado, acertos, etc.)
-    // serão mesclados em cima dessa base quando carregados do Firebase.
+    // ---------- ESTRUTURA FIXA (15 motoqueiros) ----------
     let motoqueirosBase = [];
     for (let i = 1; i <= 15; i++) {
         motoqueirosBase.push({
@@ -215,52 +219,44 @@
             acertos: { retiradaCaixa: 0, bebidas: { suco: 0, lata: 0, litro: 0, valor: 0 } }
         });
     }
-    let motoqueiros = [...motoqueirosBase]; // cópia de trabalho
+    let motoqueiros = [...motoqueirosBase];
     let todosPedidos = [];
     let config = { caixaInicial: 0, retiradas: [] };
     let currentDate = new Date().toISOString().slice(0,10);
     let currentTurno = "manha";
     let isLoading = false;
+    let refreshTimer = null;
 
     function getStorageKey() { return `entregas_${currentDate}_${currentTurno}`; }
-    function showSaveStatus(msg, isError) { 
+
+    function showSaveStatus(msg, isError) {
         let el = document.getElementById('saveStatus');
         el.innerHTML = msg;
         el.style.color = isError ? '#dc2626' : '#16a34a';
         setTimeout(() => { if (el.innerHTML === msg) el.innerHTML = ''; }, 2000);
     }
 
-    // Mesclar dados salvos (Firebase/localStorage) na estrutura base
+    // Merge dados do Firebase/localStorage na base
     function mergeDados(dados) {
         if (!dados) return;
-        // Motoboys: mesclar sobre a base
         if (dados.motoqueiros && Array.isArray(dados.motoqueiros)) {
             for (let i = 0; i < motoqueirosBase.length; i++) {
                 let base = motoqueirosBase[i];
                 let saved = dados.motoqueiros.find(m => m.id === base.id);
                 if (saved) {
-                    // Mescla propriedades preservando a estrutura completa
                     base.nome = saved.nome || base.nome;
                     base.ativo = saved.ativo !== undefined ? saved.ativo : true;
                     if (saved.acertos) base.acertos = saved.acertos;
                     if (saved.valoresPorPagamento) base.valoresPorPagamento = saved.valoresPorPagamento;
-                    // entregas e valorTotal serão recalculados depois
-                } else {
-                    // Resetar para padrão se não existir salvo
-                    base.entregas = 0;
-                    base.valorTotal = 0;
-                    base.valoresPorPagamento = { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 };
-                    base.acertos = { retiradaCaixa: 0, bebidas: { suco:0, lata:0, litro:0, valor:0 } };
                 }
             }
         }
-        // Pedidos
         if (dados.todosPedidos) todosPedidos = dados.todosPedidos;
-        // Config
         if (dados.config) config = dados.config;
     }
 
     async function carregarDados() {
+        if (isLoading) return;
         isLoading = true;
         const key = getStorageKey();
         let dados = null;
@@ -274,12 +270,7 @@
             const local = localStorage.getItem(key);
             if (local) dados = JSON.parse(local);
         }
-        // Resetar motoqueiros para a base
-        motoqueiros = JSON.parse(JSON.stringify(motoqueirosBase)); // clonagem profunda
-        if (dados) {
-            mergeDados(dados);
-        }
-        // Garantir que os motoqueiros reflitam a base mesclada
+        // Resetar motoqueiros para base
         motoqueiros = JSON.parse(JSON.stringify(motoqueirosBase));
         if (dados && dados.motoqueiros) {
             for (let i = 0; i < motoqueiros.length; i++) {
@@ -292,10 +283,8 @@
                 }
             }
         }
-        // Atualizar quantidade de ativos no input
         let ativosCount = motoqueiros.filter(m => m.ativo).length;
         document.getElementById('qtdeMotosAtivos').value = ativosCount;
-        // Recalcular entregas e totais com base nos pedidos
         recalcularTotais();
         atualizarInterfaceCompleta();
         isLoading = false;
@@ -303,7 +292,6 @@
 
     async function salvarDados() {
         if (isLoading) return;
-        // Preparar dados para salvar (apenas os motoqueiros com suas alterações)
         let dadosParaSalvar = {
             motoqueiros: motoqueiros.map(m => ({
                 id: m.id,
@@ -311,7 +299,6 @@
                 ativo: m.ativo,
                 acertos: m.acertos,
                 valoresPorPagamento: m.valoresPorPagamento
-                // entregas e valorTotal não precisam ser salvos, pois serão recalculados
             })),
             todosPedidos: todosPedidos,
             config: config
@@ -327,7 +314,6 @@
     }
 
     function recalcularTotais() {
-        // Resetar totais
         motoqueiros.forEach(m => {
             m.entregas = 0;
             m.valorTotal = 0;
@@ -349,19 +335,18 @@
         });
     }
 
-    // Atualizar o select de motoqueiros (SEMPRE com opções, baseado no array motoqueiros)
-    function atualizarSelectMotoqueiros() {
-        const select = document.getElementById('motoqueiroSelect');
-        select.innerHTML = "";
-        // Exibir apenas os ativos (ou todos se nenhum ativo)
-        let opcoes = motoqueiros.filter(m => m.ativo);
-        if (opcoes.length === 0) opcoes = motoqueiros;
-        opcoes.forEach(m => {
-            let option = document.createElement('option');
-            option.value = m.id;
-            option.textContent = m.nome;
-            select.appendChild(option);
-        });
+    // Atualiza o display do nome do motoqueiro conforme o número digitado
+    function atualizarNomeDisplay() {
+        let num = parseInt(document.getElementById('motoNumero').value);
+        if (isNaN(num)) num = 1;
+        if (num < 1) num = 1;
+        if (num > 15) num = 15;
+        const moto = motoqueiros.find(m => m.id === num);
+        if (moto) {
+            document.getElementById('motoNomeDisplay').innerText = moto.nome;
+        } else {
+            document.getElementById('motoNomeDisplay').innerText = `Motoqueiro ${num}`;
+        }
     }
 
     function renderizarCardsMotos() {
@@ -383,7 +368,7 @@
             let classe = "";
             if (canc) classe = "cancelado";
             else if (dup) classe = "repetido";
-            const ac = moto.acertos || { retiradaCaixa: 0, bebidas: { suco:0, lata:0, litro:0, valor:0 } };
+            const ac = moto.acertos;
             const beb = ac.bebidas;
             const card = document.createElement('div');
             card.className = `moto-card ${classe}`;
@@ -403,13 +388,18 @@
             nomeSpan.onclick = (e) => {
                 e.stopPropagation();
                 let novo = prompt("Nome do motoqueiro:", moto.nome);
-                if (novo && novo.trim()) { moto.nome = novo.trim(); salvarDados(); atualizarSelectMotoqueiros(); renderizarCardsMotos(); renderizarListaPedidos(); }
+                if (novo && novo.trim()) {
+                    moto.nome = novo.trim();
+                    salvarDados();
+                    renderizarCardsMotos();
+                    atualizarNomeDisplay(); // atualiza o display do nome ao lado do campo
+                    renderizarListaPedidos();
+                }
             };
             container.appendChild(card);
         });
     }
 
-    // Modal relatório
     let currentMotoId = null;
     function abrirRelatorioMoto(id) {
         currentMotoId = id;
@@ -490,17 +480,18 @@
 
     function registrarPedido() {
         let numero = document.getElementById('pedidoNumero').value.trim();
-        let motoId = parseInt(document.getElementById('motoqueiroSelect').value);
+        let motoNum = parseInt(document.getElementById('motoNumero').value);
         let valor = parseValor(document.getElementById('valorPedido').value);
         let pagamento = document.getElementById('pagamentoSelect').value;
         if (!numero) { alert("Número do pedido"); return; }
         if (numero.length > 8) { alert("Máx 8 dígitos"); return; }
+        if (isNaN(motoNum) || motoNum < 1 || motoNum > 15) { alert("Motoqueiro inválido (1-15)"); return; }
         if (valor > 0 && !pagamento) { alert("Selecione pagamento"); return; }
         let pagFinal = pagamento;
         if (valor === 0) pagFinal = "online";
         if (pagFinal === 'pix_moto' && valor === 0) { alert("Pix Moto precisa de valor"); return; }
         const novoId = Date.now() + "-" + Math.random().toString(36).substr(2,6);
-        const novo = { id: novoId, numero, motoqueiroId: motoId, valor, pagamento: pagFinal, cancelado: false, data: new Date().toLocaleString('pt-BR') };
+        const novo = { id: novoId, numero, motoqueiroId: motoNum, valor, pagamento: pagFinal, cancelado: false, data: new Date().toLocaleString('pt-BR') };
         todosPedidos.push(novo);
         salvarDados();
         atualizarInterfaceCompleta();
@@ -545,9 +536,9 @@
         if (novoVal > 0 && !["dinheiro","pix","cartao","pix_moto"].includes(pagFin)) { alert("Pagamento inválido"); return; }
         ped.numero = novoNum.trim(); ped.valor = novoVal; ped.pagamento = pagFin;
         if (confirm("Trocar motoqueiro?")) {
-            let lista = motoqueiros.filter(m => m.ativo).map(m => `${m.id} - ${m.nome}`).join(", ");
-            let novoId = prompt(`ID novo motoqueiro:\n${lista}`, ped.motoqueiroId);
-            if (novoId && motoqueiros.find(m => m.id == novoId)) ped.motoqueiroId = parseInt(novoId);
+            let novoMoto = prompt("Novo número do motoqueiro (1-15):", ped.motoqueiroId);
+            let novoId = parseInt(novoMoto);
+            if (!isNaN(novoId) && novoId >=1 && novoId <=15) ped.motoqueiroId = novoId;
         }
         salvarDados(); atualizarInterfaceCompleta(); alert("Atualizado");
     };
@@ -571,7 +562,6 @@
         setTimeout(() => div.style.display = "none", 5000);
     }
 
-    // Retiradas e caixa
     function renderizarRetiradas() {
         let div = document.getElementById('retiradasLista');
         if (!config.retiradas.length) { div.innerHTML = "<div style='color:gray;'>Nenhuma retirada</div>"; return; }
@@ -656,7 +646,6 @@
         let senha = prompt("Senha:");
         if (senha !== "Heimer245") { alert("Senha incorreta"); return; }
         if (!confirm(`Apagar ${currentDate} ${currentTurno}?`)) return;
-        // Resetar motoqueiros para base
         motoqueiros = JSON.parse(JSON.stringify(motoqueirosBase));
         todosPedidos = [];
         config = { caixaInicial: 0, retiradas: [] };
@@ -669,7 +658,6 @@
         let nova = parseInt(document.getElementById('qtdeMotosAtivos').value);
         if (isNaN(nova)) nova = 5;
         nova = Math.min(15, Math.max(1, nova));
-        // Ativar apenas os primeiros 'nova' motoqueiros
         motoqueiros.forEach(m => { m.ativo = (m.id <= nova); });
         salvarDados();
         atualizarInterfaceCompleta();
@@ -690,7 +678,7 @@
         renderizarRetiradas();
         document.getElementById('caixaInicial').value = formatarMoeda(config.caixaInicial);
         conferirCaixa();
-        atualizarSelectMotoqueiros();
+        atualizarNomeDisplay();
     }
 
     function mudarData(delta) {
@@ -705,6 +693,15 @@
         document.getElementById('btnTurnoManha').classList.toggle('active', turno === 'manha');
         document.getElementById('btnTurnoNoite').classList.toggle('active', turno === 'noite');
         carregarDados();
+    }
+
+    // Auto-refresh silencioso a cada 10 segundos
+    function iniciarRefreshSilencioso() {
+        setInterval(() => {
+            if (!isLoading) {
+                carregarDados();
+            }
+        }, 10000); // 10 segundos
     }
 
     function configurarAutoSave() {
@@ -741,13 +738,20 @@
         });
         let ci = document.getElementById('caixaInicial');
         if (ci) { ci.onchange = salvarCaixaInicialAuto; ci.onblur = salvarCaixaInicialAuto; }
+        let motoNum = document.getElementById('motoNumero');
+        if (motoNum) {
+            motoNum.addEventListener('input', atualizarNomeDisplay);
+            motoNum.addEventListener('change', atualizarNomeDisplay);
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
         let today = new Date().toISOString().slice(0,10);
         currentDate = today;
         document.getElementById('dataSelecionada').value = today;
-        carregarDados();
+        carregarDados().then(() => {
+            iniciarRefreshSilencioso();
+        });
         configurarCampos();
         let observer = new MutationObserver(() => { if (document.getElementById('modalRelatorio').style.display === 'flex') configurarAutoSave(); });
         observer.observe(document.getElementById('modalRelatorio'), { attributes: true, attributeFilter: ['style'] });
