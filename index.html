@@ -86,7 +86,11 @@
         <div class="grid-2">
             <div>
                 <div class="form-group"><label>🔢 Número do pedido</label><input type="text" id="pedidoNumero" placeholder="Ex: 123" class="numero-only"></div>
-                <div class="form-group"><label>🛵 Motoqueiro</label><select id="motoqueiroSelect"></select></div>
+                <div class="form-group"><label>🛵 Motoqueiro</label>
+                    <select id="motoqueiroSelect">
+                        <!-- Será preenchido pelo JS com opções fixas -->
+                    </select>
+                </div>
             </div>
             <div>
                 <div class="form-group"><label>💰 Valor (R$) - opcional</label><input type="text" id="valorPedido" placeholder="Ex: 45,90" class="valor-input"></div>
@@ -196,8 +200,22 @@
         document.getElementById('firebaseStatus').innerHTML = '❌ Offline (local)';
     }
 
-    // ---------- DADOS ----------
-    let motoqueiros = [];
+    // ---------- ESTRUTURA FIXA DE MOTOQUEIROS (BASE) ----------
+    // Criamos um array fixo de 15 motoqueiros. Os dados dinâmicos (nome personalizado, acertos, etc.)
+    // serão mesclados em cima dessa base quando carregados do Firebase.
+    let motoqueirosBase = [];
+    for (let i = 1; i <= 15; i++) {
+        motoqueirosBase.push({
+            id: i,
+            nome: `Motoqueiro ${i}`,
+            ativo: true,
+            entregas: 0,
+            valorTotal: 0,
+            valoresPorPagamento: { dinheiro: 0, pix: 0, cartao: 0, pix_moto: 0, online: 0 },
+            acertos: { retiradaCaixa: 0, bebidas: { suco: 0, lata: 0, litro: 0, valor: 0 } }
+        });
+    }
+    let motoqueiros = [...motoqueirosBase]; // cópia de trabalho
     let todosPedidos = [];
     let config = { caixaInicial: 0, retiradas: [] };
     let currentDate = new Date().toISOString().slice(0,10);
@@ -212,47 +230,34 @@
         setTimeout(() => { if (el.innerHTML === msg) el.innerHTML = ''; }, 2000);
     }
 
-    async function salvarDados() {
-        if (isLoading) return;
-        const dados = { motoqueiros, todosPedidos, config };
-        const key = getStorageKey();
-        localStorage.setItem(key, JSON.stringify(dados));
-        if (firebaseConnected && db) {
-            try {
-                await db.ref('delivery_data/' + key).set(dados);
-                showSaveStatus('✅ Salvo na nuvem', false);
-            } catch(e) { showSaveStatus('⚠️ Erro Firebase', true); }
-        } else { showSaveStatus('💾 Salvo local', false); }
-    }
-
-    // Garantir que motoqueiros tenham estrutura mínima e pelo menos 5 ativos
-    function validarMotoqueiros() {
-        if (!motoqueiros || motoqueiros.length === 0) {
-            motoqueiros = [];
-            for (let i = 1; i <= 5; i++) {
-                motoqueiros.push({
-                    id: i, nome: `Motoqueiro ${i}`, ativo: true,
-                    entregas: 0, valorTotal: 0,
-                    valoresPorPagamento: { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 },
-                    acertos: { retiradaCaixa: 0, bebidas: { suco:0, lata:0, litro:0, valor:0 } }
-                });
-            }
-        } else {
-            // Garantir que cada motoqueiro tenha os campos necessários
-            motoqueiros.forEach(m => {
-                if (!m.acertos) m.acertos = { retiradaCaixa: 0, bebidas: { suco:0, lata:0, litro:0, valor:0 } };
-                if (!m.valoresPorPagamento) m.valoresPorPagamento = { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 };
-                if (m.ativo === undefined) m.ativo = true;
-                if (!m.nome) m.nome = `Motoqueiro ${m.id}`;
-            });
-            // Verificar se há pelo menos 1 ativo, senão ativar os primeiros
-            if (motoqueiros.filter(m => m.ativo).length === 0) {
-                motoqueiros.forEach(m => m.ativo = true);
+    // Mesclar dados salvos (Firebase/localStorage) na estrutura base
+    function mergeDados(dados) {
+        if (!dados) return;
+        // Motoboys: mesclar sobre a base
+        if (dados.motoqueiros && Array.isArray(dados.motoqueiros)) {
+            for (let i = 0; i < motoqueirosBase.length; i++) {
+                let base = motoqueirosBase[i];
+                let saved = dados.motoqueiros.find(m => m.id === base.id);
+                if (saved) {
+                    // Mescla propriedades preservando a estrutura completa
+                    base.nome = saved.nome || base.nome;
+                    base.ativo = saved.ativo !== undefined ? saved.ativo : true;
+                    if (saved.acertos) base.acertos = saved.acertos;
+                    if (saved.valoresPorPagamento) base.valoresPorPagamento = saved.valoresPorPagamento;
+                    // entregas e valorTotal serão recalculados depois
+                } else {
+                    // Resetar para padrão se não existir salvo
+                    base.entregas = 0;
+                    base.valorTotal = 0;
+                    base.valoresPorPagamento = { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 };
+                    base.acertos = { retiradaCaixa: 0, bebidas: { suco:0, lata:0, litro:0, valor:0 } };
+                }
             }
         }
-        // Atualizar o campo de quantidade de ativos
-        let ativosCount = motoqueiros.filter(m => m.ativo).length;
-        document.getElementById('qtdeMotosAtivos').value = ativosCount;
+        // Pedidos
+        if (dados.todosPedidos) todosPedidos = dados.todosPedidos;
+        // Config
+        if (dados.config) config = dados.config;
     }
 
     async function carregarDados() {
@@ -269,24 +274,63 @@
             const local = localStorage.getItem(key);
             if (local) dados = JSON.parse(local);
         }
+        // Resetar motoqueiros para a base
+        motoqueiros = JSON.parse(JSON.stringify(motoqueirosBase)); // clonagem profunda
         if (dados) {
-            motoqueiros = dados.motoqueiros || [];
-            todosPedidos = dados.todosPedidos || [];
-            config = dados.config || { caixaInicial: 0, retiradas: [] };
-        } else {
-            motoqueiros = [];
-            todosPedidos = [];
-            config = { caixaInicial: 0, retiradas: [] };
+            mergeDados(dados);
         }
-        validarMotoqueiros(); // força estrutura correta
+        // Garantir que os motoqueiros reflitam a base mesclada
+        motoqueiros = JSON.parse(JSON.stringify(motoqueirosBase));
+        if (dados && dados.motoqueiros) {
+            for (let i = 0; i < motoqueiros.length; i++) {
+                let saved = dados.motoqueiros.find(m => m.id === motoqueiros[i].id);
+                if (saved) {
+                    motoqueiros[i].nome = saved.nome;
+                    motoqueiros[i].ativo = saved.ativo;
+                    if (saved.acertos) motoqueiros[i].acertos = saved.acertos;
+                    if (saved.valoresPorPagamento) motoqueiros[i].valoresPorPagamento = saved.valoresPorPagamento;
+                }
+            }
+        }
+        // Atualizar quantidade de ativos no input
+        let ativosCount = motoqueiros.filter(m => m.ativo).length;
+        document.getElementById('qtdeMotosAtivos').value = ativosCount;
+        // Recalcular entregas e totais com base nos pedidos
+        recalcularTotais();
         atualizarInterfaceCompleta();
         isLoading = false;
     }
 
+    async function salvarDados() {
+        if (isLoading) return;
+        // Preparar dados para salvar (apenas os motoqueiros com suas alterações)
+        let dadosParaSalvar = {
+            motoqueiros: motoqueiros.map(m => ({
+                id: m.id,
+                nome: m.nome,
+                ativo: m.ativo,
+                acertos: m.acertos,
+                valoresPorPagamento: m.valoresPorPagamento
+                // entregas e valorTotal não precisam ser salvos, pois serão recalculados
+            })),
+            todosPedidos: todosPedidos,
+            config: config
+        };
+        const key = getStorageKey();
+        localStorage.setItem(key, JSON.stringify(dadosParaSalvar));
+        if (firebaseConnected && db) {
+            try {
+                await db.ref('delivery_data/' + key).set(dadosParaSalvar);
+                showSaveStatus('✅ Salvo na nuvem', false);
+            } catch(e) { showSaveStatus('⚠️ Erro Firebase', true); }
+        } else { showSaveStatus('💾 Salvo local', false); }
+    }
+
     function recalcularTotais() {
+        // Resetar totais
         motoqueiros.forEach(m => {
-            if (!m.ativo) return;
-            m.entregas = 0; m.valorTotal = 0;
+            m.entregas = 0;
+            m.valorTotal = 0;
             m.valoresPorPagamento = { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 };
         });
         todosPedidos.forEach(ped => {
@@ -302,6 +346,21 @@
                     else moto.valoresPorPagamento.online += ped.valor;
                 }
             }
+        });
+    }
+
+    // Atualizar o select de motoqueiros (SEMPRE com opções, baseado no array motoqueiros)
+    function atualizarSelectMotoqueiros() {
+        const select = document.getElementById('motoqueiroSelect');
+        select.innerHTML = "";
+        // Exibir apenas os ativos (ou todos se nenhum ativo)
+        let opcoes = motoqueiros.filter(m => m.ativo);
+        if (opcoes.length === 0) opcoes = motoqueiros;
+        opcoes.forEach(m => {
+            let option = document.createElement('option');
+            option.value = m.id;
+            option.textContent = m.nome;
+            select.appendChild(option);
         });
     }
 
@@ -350,30 +409,7 @@
         });
     }
 
-    function atualizarSelectMotoqueiros() {
-        const select = document.getElementById('motoqueiroSelect');
-        select.innerHTML = "";
-        const ativos = motoqueiros.filter(m => m.ativo);
-        if (ativos.length === 0) {
-            // fallback: recriar motoqueiros padrão
-            validarMotoqueiros();
-            const novos = motoqueiros.filter(m => m.ativo);
-            novos.forEach(m => {
-                let opt = document.createElement('option');
-                opt.value = m.id;
-                opt.textContent = m.nome;
-                select.appendChild(opt);
-            });
-        } else {
-            ativos.forEach(m => {
-                let opt = document.createElement('option');
-                opt.value = m.id;
-                opt.textContent = m.nome;
-                select.appendChild(opt);
-            });
-        }
-    }
-
+    // Modal relatório
     let currentMotoId = null;
     function abrirRelatorioMoto(id) {
         currentMotoId = id;
@@ -472,7 +508,6 @@
         document.getElementById('valorPedido').value = "";
         document.getElementById('pagamentoSelect').value = "";
         document.getElementById('pedidoNumero').focus();
-        try { new AudioContext().close(); } catch(e) {}
     }
 
     window.cancelarPedidoIndividual = function(id) {
@@ -536,6 +571,7 @@
         setTimeout(() => div.style.display = "none", 5000);
     }
 
+    // Retiradas e caixa
     function renderizarRetiradas() {
         let div = document.getElementById('retiradasLista');
         if (!config.retiradas.length) { div.innerHTML = "<div style='color:gray;'>Nenhuma retirada</div>"; return; }
@@ -620,10 +656,10 @@
         let senha = prompt("Senha:");
         if (senha !== "Heimer245") { alert("Senha incorreta"); return; }
         if (!confirm(`Apagar ${currentDate} ${currentTurno}?`)) return;
-        motoqueiros = [];
+        // Resetar motoqueiros para base
+        motoqueiros = JSON.parse(JSON.stringify(motoqueirosBase));
         todosPedidos = [];
         config = { caixaInicial: 0, retiradas: [] };
-        validarMotoqueiros();
         salvarDados();
         atualizarInterfaceCompleta();
         alert("Dados apagados!");
@@ -633,18 +669,8 @@
         let nova = parseInt(document.getElementById('qtdeMotosAtivos').value);
         if (isNaN(nova)) nova = 5;
         nova = Math.min(15, Math.max(1, nova));
-        const novos = [];
-        for (let i=1; i<=nova; i++) {
-            let existente = motoqueiros.find(m => m.id === i);
-            if (existente) { existente.ativo = true; novos.push(existente); }
-            else {
-                novos.push({ id:i, nome:`Motoqueiro ${i}`, ativo:true, entregas:0, valorTotal:0,
-                    valoresPorPagamento:{dinheiro:0,pix:0,cartao:0,pix_moto:0,online:0},
-                    acertos:{retiradaCaixa:0,bebidas:{suco:0,lata:0,litro:0,valor:0}} });
-            }
-        }
-        motoqueiros.forEach(m => { if (m.id > nova) m.ativo = false; });
-        motoqueiros = novos;
+        // Ativar apenas os primeiros 'nova' motoqueiros
+        motoqueiros.forEach(m => { m.ativo = (m.id <= nova); });
         salvarDados();
         atualizarInterfaceCompleta();
     }
