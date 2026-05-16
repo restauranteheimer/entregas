@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>Gestão de Entregas - Cartão Cinza</title>
+    <title>Gestão de Entregas - Busca Destacada</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
         
@@ -22,6 +22,7 @@
             --input-bg: white;
             --cartao-bg: #f0f9ff;
             --cartao-confirmado: #dcfce7;
+            --busca-destaque: #dbeafe;
         }
         
         body.dark {
@@ -39,6 +40,7 @@
             --input-bg: #334155;
             --cartao-bg: #082f49;
             --cartao-confirmado: #14532d;
+            --busca-destaque: #1e3a8a;
         }
         
         body { background: var(--bg); padding: 12px; transition: all 0.3s; }
@@ -98,6 +100,13 @@
         .pedido-card.selecionado { background: #2563eb; color: white; border-left-color: #1e3a8a; }
         .pedido-card.pendente { background: var(--pedido-pendente); border-left-color: #f59e0b; }
         .pedido-card.multiplo { background: var(--pedido-multiplo); border-left-color: #ec4899; }
+        .pedido-card.busca-destaque {
+            background: var(--busca-destaque);
+            border-left: 4px solid #3b82f6;
+            box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+            margin-bottom: 12px;
+            padding: 12px;
+        }
         
         .pedido-numero { font-weight: 800; font-size: 0.9rem; }
         .pedido-info { display: flex; flex-direction: column; align-items: flex-start; }
@@ -300,7 +309,6 @@
         <input type="text" id="buscaNumero" placeholder="🔍 Buscar pedido..." class="numero-only">
         <button id="btnBuscarPedido" class="btn-small">Buscar</button>
     </div>
-    <div id="resultadoBusca" style="display: none;"></div>
 
     <div class="card">
         <h2>📝 Novo Pedido</h2>
@@ -482,6 +490,7 @@
 
     let motoqueiros = [], todosPedidos = [], config = { caixaInicial: 0, despesas: [], confirmacoesCartao: {} };
     let currentDate = new Date().toISOString().slice(0,10), currentTurno = "manha", isLoading = false, motoqueiroSelecionado = null, pedidosSelecionados = new Set();
+    let pedidoDestaqueId = null; // ID do pedido que está em destaque na busca
 
     const dadosIniciais = { pendentes: [
         { numero: "1436", valor: 0, pagamento: "online" }, { numero: "1467", valor: 0, pagamento: "online" }, { numero: "3722", valor: 0, pagamento: "online" },
@@ -493,7 +502,7 @@
     function showAlert(message, type) { const alertDiv = document.createElement('div'); alertDiv.className = `alert-modal ${type === 'success' ? 'success' : ''}`; alertDiv.innerHTML = message; document.body.appendChild(alertDiv); setTimeout(() => alertDiv.remove(), 4000); }
     function parseValor(s) { if (!s) return 0; let str = s.toString().replace(/\./g, '').replace(',', '.'); let num = parseFloat(str); return isNaN(num) ? 0 : num; }
     function formatarMoeda(v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
-    function getStorageKey() { return `entregas_cartao_final_${currentDate}_${currentTurno}`; }
+    function getStorageKey() { return `entregas_busca_destaque_${currentDate}_${currentTurno}`; }
     function showSaveStatus(msg, isError) { let el = document.getElementById('saveStatus'); el.innerHTML = msg; el.style.color = isError ? '#dc2626' : '#16a34a'; setTimeout(() => { if (el.innerHTML === msg) el.innerHTML = ''; }, 2000); }
 
     async function salvarDados() { if (isLoading) return; let dados = { motoqueiros, todosPedidos, config }; const key = getStorageKey(); localStorage.setItem(key, JSON.stringify(dados)); if (firebaseConnected && db) { try { await db.ref('delivery_data/' + key).set(dados); showSaveStatus('✅', false); } catch(e) { showSaveStatus('⚠️', true); } } }
@@ -575,20 +584,57 @@
         });
     }
 
+    // FUNÇÃO DE BUSCA - Mostra o pedido no TOPO da lista com destaque
+    function buscarPedido() {
+        const numero = document.getElementById('buscaNumero').value.trim();
+        if (!numero) {
+            pedidoDestaqueId = null;
+            renderizarPedidosPendentes();
+            return;
+        }
+        
+        const pedidoEncontrado = todosPedidos.find(p => p.numero === numero && p.status === 'pendente');
+        
+        if (pedidoEncontrado) {
+            pedidoDestaqueId = pedidoEncontrado.id;
+            renderizarPedidosPendentes();
+            showAlert(`🔍 Pedido #${numero} encontrado e destacado no topo da lista!`, 'success');
+        } else {
+            pedidoDestaqueId = null;
+            renderizarPedidosPendentes();
+            showAlert(`❌ Pedido #${numero} não encontrado ou já foi concluído/cancelado.`, 'error');
+        }
+    }
+
     function renderizarPedidosPendentes() {
         const container = document.getElementById('pedidosPendentesLista');
-        const pendentes = todosPedidos.filter(p => p.status === 'pendente');
+        let pendentes = todosPedidos.filter(p => p.status === 'pendente');
+        
+        // Ordenar: primeiro o pedido em destaque (se existir), depois os mais recentes
+        if (pedidoDestaqueId) {
+            const pedidoDestaque = pendentes.find(p => p.id === pedidoDestaqueId);
+            if (pedidoDestaque) {
+                pendentes = pendentes.filter(p => p.id !== pedidoDestaqueId);
+                pendentes.unshift(pedidoDestaque);
+            } else {
+                pedidoDestaqueId = null;
+            }
+        }
+        
         pendentes.sort((a,b) => new Date(b.data) - new Date(a.data));
         const numerosMultiplos = getNumerosMultiplos();
         document.getElementById('qtdPendentes').innerText = pendentes.length;
         
         if (pendentes.length === 0) {
-            container.innerHTML = '<div style="text-align:center; color:#999; padding:30px;">Nenhum pedido</div>';
+            container.innerHTML = '<div style="text-align:center; color:#999; padding:30px;">Nenhum pedido pendente</div>';
             return;
         }
         
-        container.innerHTML = pendentes.map(ped => {
+        container.innerHTML = pendentes.map((ped, index) => {
             let classeExtra = numerosMultiplos.has(ped.numero) ? 'multiplo' : 'pendente';
+            const isDestaque = (pedidoDestaqueId === ped.id);
+            if (isDestaque) classeExtra = 'busca-destaque';
+            
             const pagamentoLabel = ped.pagamento === 'dinheiro' ? '💵 Dinheiro' : 
                                    ped.pagamento === 'pix' ? '📱 Pix' : 
                                    ped.pagamento === 'cartao' ? '💳 Cartão' :
@@ -758,10 +804,73 @@
         document.getElementById('pedidoNumero').focus(); 
     }
 
-    window.editarPedido = function(id) { const ped = todosPedidos.find(p => p.id === id); if (!ped) return; document.getElementById('editPedidoId').value = id; document.getElementById('editNumero').value = ped.numero; document.getElementById('editValor').value = ped.valor.toFixed(2).replace('.', ','); document.getElementById('editPagamento').value = ped.pagamento; const selectMoto = document.getElementById('editMotoqueiro'); selectMoto.innerHTML = '<option value="">--</option>'; motoqueiros.filter(m => m.ativo).forEach(m => { const option = document.createElement('option'); option.value = m.id; option.textContent = m.nome; if (ped.motoqueiroId === m.id) option.selected = true; selectMoto.appendChild(option); }); document.getElementById('modalEditarPedido').style.display = 'flex'; };
-    function salvarEdicao() { const id = document.getElementById('editPedidoId').value; const ped = todosPedidos.find(p => p.id === id); if (!ped) return; const novoNumero = document.getElementById('editNumero').value.trim(); const novoValor = parseValor(document.getElementById('editValor').value); const novoPagamento = document.getElementById('editPagamento').value; const novoMotoId = document.getElementById('editMotoqueiro').value; if (!novoNumero) { alert("Número obrigatório"); return; } ped.numero = novoNumero; ped.valor = novoValor; ped.pagamento = novoPagamento; if (novoMotoId && novoMotoId !== "") { ped.motoqueiroId = parseInt(novoMotoId); if (ped.status === 'pendente') ped.status = 'concluido'; } salvarDados(); atualizarInterfaceCompleta(); fecharModalEditar(); showAlert(`✅ Atualizado!`, 'success'); }
-    window.excluirPedido = function(id) { if (confirm("Excluir permanentemente?")) { const index = todosPedidos.findIndex(p => p.id === id); if (index !== -1) { const ped = todosPedidos[index]; todosPedidos.splice(index, 1); salvarDados(); atualizarInterfaceCompleta(); showAlert(`✅ Pedido #${ped.numero} excluído!`, 'success'); } } };
-    window.cancelarPedido = function(id) { const ped = todosPedidos.find(p => p.id === id); if (!ped || ped.status === 'cancelado') return; const motivo = prompt("Motivo:"); if (!motivo) return; ped.status = 'cancelado'; ped.motivo = motivo; ped.dataCancelamento = new Date().toLocaleString(); if (ped.motoqueiroId) ped.motoqueiroId = null; salvarDados(); atualizarInterfaceCompleta(); showAlert(`❌ Pedido #${ped.numero} cancelado!`, 'error'); };
+    window.editarPedido = function(id) { 
+        const ped = todosPedidos.find(p => p.id === id); 
+        if (!ped) return; 
+        document.getElementById('editPedidoId').value = id; 
+        document.getElementById('editNumero').value = ped.numero; 
+        document.getElementById('editValor').value = ped.valor.toFixed(2).replace('.', ','); 
+        document.getElementById('editPagamento').value = ped.pagamento; 
+        const selectMoto = document.getElementById('editMotoqueiro'); 
+        selectMoto.innerHTML = '<option value="">--</option>'; 
+        motoqueiros.filter(m => m.ativo).forEach(m => { 
+            const option = document.createElement('option'); 
+            option.value = m.id; 
+            option.textContent = m.nome; 
+            if (ped.motoqueiroId === m.id) option.selected = true; 
+            selectMoto.appendChild(option); 
+        }); 
+        document.getElementById('modalEditarPedido').style.display = 'flex'; 
+        // Limpar destaque após editar
+        pedidoDestaqueId = null;
+        document.getElementById('buscaNumero').value = '';
+    };
+    
+    function salvarEdicao() { 
+        const id = document.getElementById('editPedidoId').value; 
+        const ped = todosPedidos.find(p => p.id === id); 
+        if (!ped) return; 
+        const novoNumero = document.getElementById('editNumero').value.trim(); 
+        const novoValor = parseValor(document.getElementById('editValor').value); 
+        const novoPagamento = document.getElementById('editPagamento').value; 
+        const novoMotoId = document.getElementById('editMotoqueiro').value; 
+        if (!novoNumero) { alert("Número obrigatório"); return; } 
+        ped.numero = novoNumero; 
+        ped.valor = novoValor; 
+        ped.pagamento = novoPagamento; 
+        if (novoMotoId && novoMotoId !== "") { 
+            ped.motoqueiroId = parseInt(novoMotoId); 
+            if (ped.status === 'pendente') ped.status = 'concluido'; 
+        } 
+        salvarDados(); atualizarInterfaceCompleta(); fecharModalEditar(); 
+        showAlert(`✅ Pedido #${ped.numero} atualizado!`, 'success'); 
+    }
+    
+    window.excluirPedido = function(id) { 
+        if (confirm("Excluir permanentemente?")) { 
+            const index = todosPedidos.findIndex(p => p.id === id); 
+            if (index !== -1) { 
+                const ped = todosPedidos[index]; 
+                todosPedidos.splice(index, 1); 
+                salvarDados(); atualizarInterfaceCompleta(); 
+                showAlert(`✅ Pedido #${ped.numero} excluído!`, 'success'); 
+            } 
+        } 
+    };
+    
+    window.cancelarPedido = function(id) { 
+        const ped = todosPedidos.find(p => p.id === id); 
+        if (!ped || ped.status === 'cancelado') return; 
+        const motivo = prompt("Motivo:"); 
+        if (!motivo) return; 
+        ped.status = 'cancelado'; 
+        ped.motivo = motivo; 
+        ped.dataCancelamento = new Date().toLocaleString(); 
+        if (ped.motoqueiroId) ped.motoqueiroId = null; 
+        salvarDados(); atualizarInterfaceCompleta(); 
+        showAlert(`❌ Pedido #${ped.numero} cancelado!`, 'error'); 
+    };
+    
     function fecharModalEditar() { document.getElementById('modalEditarPedido').style.display = 'none'; }
 
     let currentMotoAcertosId = null;
@@ -814,8 +923,8 @@
         document.getElementById('btnTurnoNoite').onclick = () => mudarTurno('noite'); document.getElementById('dataSelecionada').onchange = (e) => { currentDate = e.target.value; carregarDados(); };
         document.getElementById('btnSalvarEdicao').onclick = salvarEdicao; document.getElementById('btnSalvarAcertos').onclick = salvarAcertos;
         document.getElementById('btnSalvarEdicaoMoto').onclick = salvarEdicaoMoto;
-        document.getElementById('btnBuscarPedido').onclick = () => { const num = document.getElementById('buscaNumero').value.trim(); const div = document.getElementById('resultadoBusca'); if (!num) { div.style.display = 'none'; return; } const encontrados = todosPedidos.filter(p => p.numero === num); if (encontrados.length === 0) { div.innerHTML = `<div class="resultado-busca resultado-erro">❌ #${num} não encontrado</div>`; div.style.display = 'block'; return; } let html = ''; encontrados.forEach(ped => { let statusClass = ped.status === 'pendente' ? 'resultado-alerta' : (ped.status === 'concluido' ? 'resultado-sucesso' : 'resultado-erro'); let statusText = ped.status === 'pendente' ? '🟡 PENDENTE' : (ped.status === 'concluido' ? '✅ CONCLUÍDO' : '❌ CANCELADO'); let motoNome = ped.motoqueiroId ? (motoqueiros.find(m => m.id === ped.motoqueiroId)?.nome || '?') : 'Nenhum'; html += `<div class="resultado-busca ${statusClass}" onclick="editarPedido('${ped.id}')"><strong>#${ped.numero}</strong><br>📍 ${statusText}<br>🛵 ${motoNome}<br>💰 ${ped.valor > 0 ? formatarMoeda(ped.valor) : '—'}<br>💳 ${ped.pagamento}<br><small>🔍 Clique</small></div>`; }); div.innerHTML = html; div.style.display = 'block'; };
-        document.getElementById('buscaNumero').addEventListener('keypress', (e) => { if (e.key === 'Enter') document.getElementById('btnBuscarPedido').click(); });
+        document.getElementById('btnBuscarPedido').onclick = buscarPedido;
+        document.getElementById('buscaNumero').addEventListener('keypress', (e) => { if (e.key === 'Enter') buscarPedido(); });
         document.getElementById('pedidoNumero').addEventListener('keypress', e => { if(e.key === 'Enter') registrarPedido(); });
         document.querySelectorAll('.numero-only').forEach(inp => { inp.oninput = function() { this.value = this.value.replace(/\D/g, ''); }; inp.onfocus = function() { this.select(); }; });
         document.querySelectorAll('.valor-input').forEach(inp => { inp.onfocus = function() { this.select(); }; inp.oninput = function() { this.value = this.value.replace(/[^0-9,]/g, ''); }; });
