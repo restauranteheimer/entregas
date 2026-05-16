@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>Gestão de Entregas - Simplificada</title>
+    <title>Gestão de Entregas - Busca Completa</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
         
@@ -18,6 +18,8 @@
             --pedido-cancelado: #f3f4f6;
             --moto-bg: #f8fafc;
             --moto-cartao-bg: #d1d5db;
+            --moto-repetido-bg: #fee2e2;
+            --moto-duplicado-bg: #fef3c7;
             --status-bg: #fff;
             --input-bg: white;
             --cartao-bg: #f0f9ff;
@@ -36,6 +38,8 @@
             --pedido-cancelado: #1f2937;
             --moto-bg: #0f172a;
             --moto-cartao-bg: #374151;
+            --moto-repetido-bg: #7f1d1d;
+            --moto-duplicado-bg: #78350f;
             --status-bg: #1e293b;
             --input-bg: #334155;
             --cartao-bg: #082f49;
@@ -72,7 +76,6 @@
         
         .card { background: var(--card-bg); border-radius: 20px; padding: 14px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid var(--border); }
         .card h2 { font-size: 1.1rem; margin-bottom: 12px; color: var(--text); display: flex; align-items: center; gap: 8px; }
-        .card h3 { font-size: 0.9rem; margin: 10px 0 8px; color: var(--text); }
         
         .grid-3, .grid-2 { display: flex; flex-direction: column; gap: 16px; }
         @media (min-width: 768px) {
@@ -100,113 +103,106 @@
         .pedido-card.selecionado { background: #2563eb; color: white; border-left-color: #1e3a8a; }
         .pedido-card.pendente { background: var(--pedido-pendente); border-left-color: #f59e0b; }
         .pedido-card.multiplo { background: var(--pedido-multiplo); border-left-color: #ec4899; }
-        .pedido-card.busca-destaque {
-            background: var(--busca-destaque);
-            border-left: 4px solid #3b82f6;
-            box-shadow: 0 2px 8px rgba(59,130,246,0.3);
-            margin-bottom: 12px;
-            padding: 12px;
-        }
         
-        .pedido-numero { font-weight: 800; font-size: 0.9rem; }
-        .pedido-info { display: flex; flex-direction: column; align-items: flex-start; }
-        .pedido-valor { font-size: 0.7rem; font-weight: 600; color: #16a34a; }
-        .pedido-pagamento { font-size: 0.6rem; color: #64748b; margin-top: 2px; }
-        .pedido-card.selecionado .pedido-valor { color: #e0f2fe; }
-        .pedido-card.selecionado .pedido-pagamento { color: #bfdbfe; }
-        
-        .motos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+        .motos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
         @media (max-width: 480px) { .motos-grid { grid-template-columns: 1fr; } }
         
         .moto-card {
             background: var(--moto-bg);
             border-radius: 16px;
-            padding: 10px;
+            padding: 12px;
             cursor: pointer;
             transition: all 0.2s;
             border: 2px solid var(--border);
-            text-align: center;
             color: var(--text);
             font-size: 0.8rem;
             position: relative;
         }
         .moto-card.cartao { background: var(--moto-cartao-bg); }
+        .moto-card.repetido { background: var(--moto-repetido-bg); border-color: #ef4444; }
+        .moto-card.duplicado { background: var(--moto-duplicado-bg); border-color: #f59e0b; }
         .moto-card.drag-over { border-color: #3b82f6; background: #eff6ff; transform: scale(1.01); }
         .moto-card.selecionado { border-color: #3b82f6; background: #eff6ff; color: #1e293b; }
-        .moto-nome { font-weight: 800; font-size: 0.9rem; cursor: pointer; padding: 4px 8px; border-radius: 12px; display: inline-block; background: #e2e8f0; color: #1e293b; }
+        body.dark .moto-card.selecionado { background: #3b82f6; color: white; }
+        
+        .moto-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ef4444;
+            color: white;
+            font-size: 0.6rem;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        .moto-badge.duplicado { background: #f59e0b; }
+        
+        .moto-nome { font-weight: 800; font-size: 0.9rem; cursor: pointer; padding: 4px 8px; border-radius: 12px; display: inline-block; background: #e2e8f0; color: #1e293b; margin-bottom: 8px; }
         .moto-entregas { font-size: 1.3rem; font-weight: 800; color: #3b82f6; margin: 6px 0; }
         .moto-valor { font-size: 0.7rem; color: #64748b; }
-        .moto-acertos { font-size: 0.65rem; background: #eef2ff; padding: 5px; border-radius: 10px; margin-top: 6px; text-align: left; }
+        .moto-acertos { font-size: 0.65rem; background: #eef2ff; padding: 6px; border-radius: 10px; margin-top: 6px; text-align: left; }
+        .moto-repetidos {
+            font-size: 0.65rem;
+            background: #fee2e2;
+            padding: 6px;
+            border-radius: 10px;
+            margin-top: 6px;
+            text-align: left;
+            border-left: 3px solid #ef4444;
+        }
         
-        /* Box de Conferência de Cartão */
-        .cartao-box {
-            background: var(--cartao-bg);
-            border-radius: 16px;
-            padding: 12px;
-            margin-top: 12px;
-            border: 1px solid #3b82f6;
-        }
-        .cartao-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
-        }
-        .cartao-count {
-            font-size: 0.75rem;
-            background: #3b82f6;
-            color: white;
-            padding: 4px 10px;
-            border-radius: 30px;
-        }
-        .cartao-count.confirmados { background: #22c55e; }
-        .cartao-count.pendentes { background: #f59e0b; }
-        .cartao-lista {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .cartao-item {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 8px 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-            border-left: 4px solid #3b82f6;
-            transition: all 0.2s;
-            font-size: 0.8rem;
-        }
-        .cartao-item.confirmado {
-            background: var(--cartao-confirmado);
-            text-decoration: line-through;
-            opacity: 0.7;
-            border-left-color: #22c55e;
-        }
-        .cartao-info { flex: 2; }
-        .cartao-numero { font-weight: 800; font-size: 0.9rem; }
-        .cartao-parcela { font-size: 0.7rem; color: #64748b; }
-        .cartao-valor { font-weight: 600; color: #16a34a; font-size: 0.8rem; }
-        .btn-confirmar {
-            background: #3b82f6;
-            padding: 6px 12px;
-            font-size: 0.7rem;
-            border-radius: 30px;
-        }
-        .btn-confirmar.confirmado { background: #22c55e; cursor: default; opacity: 0.6; }
-        
+        /* BOX DE RESULTADO DA BUSCA */
         .busca-container { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; background: var(--card-bg); padding: 12px; border-radius: 20px; border: 1px solid var(--border); }
         @media (min-width: 480px) { .busca-container { flex-direction: row; } }
         .busca-container input { flex: 3; padding: 10px; border: 1px solid var(--border); border-radius: 40px; font-size: 0.85rem; background: var(--input-bg); color: var(--text); }
         .busca-container button { flex: 1; background: #3b82f6; padding: 10px; font-size: 0.85rem; }
+        
+        .resultado-busca-box {
+            margin-bottom: 16px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+        .resultado-busca-header {
+            background: #3b82f6;
+            color: white;
+            padding: 10px 14px;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        .resultado-busca-lista {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .resultado-item {
+            background: var(--pedido-bg);
+            border-radius: 14px;
+            padding: 12px;
+            border-left: 5px solid;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .resultado-item:hover { transform: translateX(4px); opacity: 0.9; }
+        .resultado-item.status-pendente { border-left-color: #f59e0b; background: var(--pedido-pendente); }
+        .resultado-item.status-concluido { border-left-color: #22c55e; background: #f0fdf4; }
+        .resultado-item.status-cancelado { border-left-color: #9ca3af; background: var(--pedido-cancelado); text-decoration: line-through; }
+        body.dark .resultado-item.status-concluido { background: #064e3b; }
+        .resultado-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+        .resultado-numero { font-weight: 800; font-size: 1rem; }
+        .resultado-status { font-size: 0.7rem; padding: 3px 8px; border-radius: 20px; }
+        .status-pendente-badge { background: #f59e0b; color: white; }
+        .status-concluido-badge { background: #22c55e; color: white; }
+        .status-cancelado-badge { background: #9ca3af; color: white; }
+        .resultado-info { font-size: 0.75rem; color: var(--text); opacity: 0.8; margin-bottom: 8px; }
+        .resultado-acoes { display: flex; gap: 8px; margin-top: 6px; }
         
         .form-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
         @media (min-width: 480px) { .form-row { flex-direction: row; } }
@@ -245,18 +241,6 @@
         .modal-content { background: var(--card-bg); padding: 20px; border-radius: 24px; max-width: 600px; width: 100%; max-height: 85vh; overflow-y: auto; color: var(--text); }
         .close-modal { float: right; font-size: 24px; cursor: pointer; }
         
-        .pedidos-moto-lista { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; margin-top: 12px; }
-        .pedido-moto-item {
-            background: var(--pedido-bg);
-            border-radius: 12px;
-            padding: 10px;
-            border-left: 4px solid #3b82f6;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
         .drag-hint { font-size: 0.6rem; color: #64748b; text-align: center; margin-top: 8px; padding: 6px; background: var(--moto-bg); border-radius: 10px; }
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
@@ -286,9 +270,14 @@
         <span style="margin-left: 12px;">💾 <span id="saveStatus"></span></span>
     </div>
 
+    <!-- BUSCA -->
     <div class="busca-container">
-        <input type="text" id="buscaNumero" placeholder="🔍 Buscar pedido..." class="numero-only">
+        <input type="text" id="buscaNumero" placeholder="🔍 Buscar pedido (número)..." class="numero-only">
         <button id="btnBuscarPedido" class="btn-small">Buscar</button>
+    </div>
+    <div id="resultadoBuscaBox" class="resultado-busca-box" style="display: none;">
+        <div class="resultado-busca-header">🔎 Resultado da Busca</div>
+        <div id="resultadoBuscaLista" class="resultado-busca-lista"></div>
     </div>
 
     <div class="card">
@@ -465,7 +454,6 @@
     let db, firebaseConnected = false;
     try { firebase.initializeApp(firebaseConfig); db = firebase.database(); firebaseConnected = true; document.getElementById('firebaseStatus').innerHTML = '✅ Conectado'; } catch(e) { firebaseConnected = false; document.getElementById('firebaseStatus').innerHTML = '❌ Offline'; }
 
-    function formatarDataBR(dataISO) { if (!dataISO) return ''; const partes = dataISO.split('-'); return `${partes[2]}/${partes[1]}/${partes[0]}`; }
     function toggleModoNoturno() { document.body.classList.toggle('dark'); localStorage.setItem('modoNoturno', document.body.classList.contains('dark')); }
     if (localStorage.getItem('modoNoturno') === 'true') document.body.classList.add('dark');
 
@@ -504,7 +492,12 @@
         atualizarStats(); renderizarConferenciaCartao();
     }
 
-    function atualizarStats() { document.getElementById('totalPendentes').innerText = todosPedidos.filter(p => p.status === 'pendente').length; document.getElementById('totalConcluidos').innerText = todosPedidos.filter(p => p.status === 'concluido').length; document.getElementById('totalCancelados').innerText = todosPedidos.filter(p => p.status === 'cancelado').length; document.getElementById('totalGeral').innerText = todosPedidos.length; }
+    function atualizarStats() { 
+        document.getElementById('totalPendentes').innerText = todosPedidos.filter(p => p.status === 'pendente').length; 
+        document.getElementById('totalConcluidos').innerText = todosPedidos.filter(p => p.status === 'concluido').length; 
+        document.getElementById('totalCancelados').innerText = todosPedidos.filter(p => p.status === 'cancelado').length; 
+        document.getElementById('totalGeral').innerText = todosPedidos.length; 
+    }
 
     function getNumerosMultiplos() { const pendentes = todosPedidos.filter(p => p.status === 'pendente'); const contagem = {}; pendentes.forEach(p => { contagem[p.numero] = (contagem[p.numero] || 0) + 1; }); return new Set(Object.keys(contagem).filter(n => contagem[n] > 1)); }
 
@@ -565,25 +558,77 @@
         });
     }
 
+    // FUNÇÃO DE BUSCA - Busca em TODOS os pedidos
     function buscarPedido() {
         const numero = document.getElementById('buscaNumero').value.trim();
+        const resultBox = document.getElementById('resultadoBuscaBox');
+        const resultList = document.getElementById('resultadoBuscaLista');
+        
         if (!numero) {
-            pedidoDestaqueId = null;
-            renderizarPedidosPendentes();
+            resultBox.style.display = 'none';
             return;
         }
         
-        const pedidoEncontrado = todosPedidos.find(p => p.numero === numero && p.status === 'pendente');
+        const pedidosEncontrados = todosPedidos.filter(p => p.numero === numero);
         
-        if (pedidoEncontrado) {
-            pedidoDestaqueId = pedidoEncontrado.id;
-            renderizarPedidosPendentes();
-            showAlert(`🔍 Pedido #${numero} encontrado e destacado no topo da lista!`, 'success');
-        } else {
-            pedidoDestaqueId = null;
-            renderizarPedidosPendentes();
-            showAlert(`❌ Pedido #${numero} não encontrado ou já foi concluído/cancelado.`, 'error');
+        if (pedidosEncontrados.length === 0) {
+            resultList.innerHTML = `<div style="text-align:center; padding:20px; color:#999;">❌ Nenhum pedido encontrado com o número #${numero}</div>`;
+            resultBox.style.display = 'block';
+            return;
         }
+        
+        resultList.innerHTML = pedidosEncontrados.map(ped => {
+            let statusClass = '';
+            let statusBadge = '';
+            let statusText = '';
+            let motoNome = '';
+            
+            if (ped.status === 'pendente') {
+                statusClass = 'status-pendente';
+                statusBadge = '🟡 PENDENTE';
+                statusText = 'Aguardando associação';
+                motoNome = 'Nenhum motoqueiro atribuído';
+            } else if (ped.status === 'concluido') {
+                statusClass = 'status-concluido';
+                statusBadge = '✅ CONCLUÍDO';
+                const moto = motoqueiros.find(m => m.id === ped.motoqueiroId);
+                motoNome = moto ? moto.nome : 'Motoqueiro não encontrado';
+                statusText = `Entregue por ${motoNome}`;
+            } else {
+                statusClass = 'status-cancelado';
+                statusBadge = '❌ CANCELADO';
+                motoNome = `Motivo: ${ped.motivo || 'Não informado'}`;
+                statusText = motoNome;
+            }
+            
+            const pagamentoLabel = ped.pagamento === 'dinheiro' ? '💵 Dinheiro' : 
+                                   ped.pagamento === 'pix' ? '📱 Pix' : 
+                                   ped.pagamento === 'cartao' ? '💳 Cartão' :
+                                   ped.pagamento === 'pix_moto' ? '📲 Pix Moto' : '🌐 Online';
+            
+            return `
+                <div class="resultado-item ${statusClass}" onclick="editarPedido('${ped.id}')">
+                    <div class="resultado-header">
+                        <span class="resultado-numero">📦 Pedido #${ped.numero}</span>
+                        <span class="resultado-status ${statusClass}-badge">${statusBadge}</span>
+                    </div>
+                    <div class="resultado-info">
+                        💰 Valor: ${ped.valor > 0 ? formatarMoeda(ped.valor) : 'Sem valor'} | 
+                        💳 Pagamento: ${pagamentoLabel}<br>
+                        🛵 Motoqueiro: ${motoNome}<br>
+                        🕐 Data: ${ped.data}${ped.dataCancelamento ? ` | Cancelado em: ${ped.dataCancelamento}` : ''}
+                    </div>
+                    <div class="resultado-acoes">
+                        <button class="btn-small" style="background:#3b82f6;" onclick="event.stopPropagation(); editarPedido('${ped.id}')">✏️ Editar</button>
+                        ${ped.status !== 'cancelado' ? `<button class="btn-small" style="background:#ef4444;" onclick="event.stopPropagation(); cancelarPedido('${ped.id}')">❌ Cancelar</button>` : ''}
+                        <button class="btn-small btn-danger" onclick="event.stopPropagation(); excluirPedido('${ped.id}')">🗑️ Excluir</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        resultBox.style.display = 'block';
+        resultBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function renderizarPedidosPendentes() {
@@ -612,7 +657,6 @@
         container.innerHTML = pendentes.map((ped, index) => {
             let classeExtra = numerosMultiplos.has(ped.numero) ? 'multiplo' : 'pendente';
             const isDestaque = (pedidoDestaqueId === ped.id);
-            if (isDestaque) classeExtra = 'busca-destaque';
             
             const pagamentoLabel = ped.pagamento === 'dinheiro' ? '💵 Dinheiro' : 
                                    ped.pagamento === 'pix' ? '📱 Pix' : 
@@ -640,19 +684,114 @@
     function renderizarPedidosCancelados() { const container = document.getElementById('pedidosCanceladosLista'); const cancelados = todosPedidos.filter(p => p.status === 'cancelado').slice(-20); if (cancelados.length === 0) { container.innerHTML = '<span>Nenhum</span>'; return; } container.innerHTML = cancelados.map(ped => `<span style="background:#fee2e2; padding:3px 8px; border-radius:20px; font-size:0.65rem; text-decoration:line-through;">#${ped.numero}</span>`).join(''); }
 
     function renderizarMotoqueiros() {
-        const container = document.getElementById('motosContainer'); container.innerHTML = "";
+        const container = document.getElementById('motosContainer'); 
+        container.innerHTML = "";
+        const { repetidos, duplicadosLocal } = detectarPedidosRepetidos();
+        
         motoqueiros.filter(m => m.ativo).forEach(moto => {
-            const ac = moto.acertos; const beb = ac.bebidas;
+            const ac = moto.acertos; 
+            const beb = ac.bebidas;
             const temCartao = motoqueiroTemCartao(moto.id);
+            const temRepetido = repetidos.has(moto.id);
+            const temDuplicadoLocal = duplicadosLocal.has(moto.id);
+            
+            let classeExtra = '';
+            let badgeTexto = '';
+            let badgeClasse = '';
+            let listaRepetidos = '';
+            
+            if (temRepetido) {
+                classeExtra = 'repetido';
+                const info = repetidos.get(moto.id);
+                badgeTexto = `⚠️ ${info.numeros.length} conflito(s)`;
+                badgeClasse = '';
+                listaRepetidos = `<div class="moto-repetidos">
+                                    <strong>❗ Pedidos conflitantes:</strong><br>
+                                    ${info.detalhes.map(d => `• ${d}`).join('<br>')}
+                                  </div>`;
+            } else if (temDuplicadoLocal) {
+                classeExtra = 'duplicado';
+                const nums = duplicadosLocal.get(moto.id);
+                badgeTexto = `🟡 ${nums.length} duplicado(s)`;
+                badgeClasse = 'duplicado';
+                listaRepetidos = `<div class="moto-repetidos" style="background:#fef3c7; border-left-color:#f59e0b;">
+                                    <strong>🟡 Pedidos duplicados (mesmo motoqueiro):</strong><br>
+                                    ${nums.map(n => `• #${n} (${contarOcorrencias(moto.id, n)}x)`).join('<br>')}
+                                  </div>`;
+            }
+            
             const card = document.createElement('div'); 
-            card.className = `moto-card ${temCartao ? 'cartao' : ''} ${motoqueiroSelecionado === moto.id ? 'selecionado' : ''}`; 
+            card.className = `moto-card ${temCartao ? 'cartao' : ''} ${classeExtra} ${motoqueiroSelecionado === moto.id ? 'selecionado' : ''}`; 
             card.setAttribute("data-id", moto.id);
             card.onclick = (e) => { if (!e.target.classList.contains('moto-nome') && !e.target.classList.contains('btn-editar-acertos')) { motoqueiroSelecionado = moto.id; renderizarMotoqueiros(); abrirDetalhesMoto(moto.id); } };
-            card.innerHTML = `<div class="moto-nome">✏️ ${moto.nome}</div><div class="moto-entregas">${moto.entregas}</div><div class="moto-valor">💰 ${formatarMoeda(moto.valorTotal)}</div><div class="moto-acertos"><div>💵 Din: ${formatarMoeda(moto.valoresPorPagamento.dinheiro)}</div><div>📲 Pix Moto: ${formatarMoeda(moto.valoresPorPagamento.pix_moto)}</div><div>💰 Pegou: ${formatarMoeda(ac.retiradaCaixa)}</div><div>🥤 ${beb.suco} 🥫 ${beb.lata} 🧃 ${beb.litro}</div></div><button class="btn-small btn-editar-acertos" style="margin-top:5px; background:#8b5cf6;" onclick="event.stopPropagation(); abrirEditarAcertos(${moto.id})">✏️</button>`;
-            const nomeSpan = card.querySelector('.moto-nome'); nomeSpan.ondblclick = (e) => { e.stopPropagation(); const novoNome = prompt("Nome:", moto.nome); if (novoNome && novoNome.trim()) { moto.nome = novoNome.trim(); salvarDados(); renderizarMotoqueiros(); renderizarPedidosConcluidos(); } };
+            
+            let badgeHtml = '';
+            if (badgeTexto) {
+                badgeHtml = `<div class="moto-badge ${badgeClasse}">${badgeTexto}</div>`;
+            }
+            
+            card.innerHTML = `
+                ${badgeHtml}
+                <div class="moto-nome">✏️ ${moto.nome}</div>
+                <div class="moto-entregas">${moto.entregas}</div>
+                <div class="moto-valor">💰 ${formatarMoeda(moto.valorTotal)}</div>
+                <div class="moto-acertos">
+                    <div>💵 Din: ${formatarMoeda(moto.valoresPorPagamento.dinheiro)}</div>
+                    <div>📲 Pix Moto: ${formatarMoeda(moto.valoresPorPagamento.pix_moto)}</div>
+                    <div>💰 Pegou: ${formatarMoeda(ac.retiradaCaixa)}</div>
+                    <div>🥤 ${beb.suco} 🥫 ${beb.lata} 🧃 ${beb.litro}</div>
+                </div>
+                ${listaRepetidos}
+                <button class="btn-small btn-editar-acertos" style="margin-top:5px; background:#8b5cf6;" onclick="event.stopPropagation(); abrirEditarAcertos(${moto.id})">✏️ Editar acertos</button>
+            `;
+            
+            const nomeSpan = card.querySelector('.moto-nome'); 
+            nomeSpan.ondblclick = (e) => { e.stopPropagation(); const novoNome = prompt("Nome:", moto.nome); if (novoNome && novoNome.trim()) { moto.nome = novoNome.trim(); salvarDados(); renderizarMotoqueiros(); renderizarPedidosConcluidos(); } };
             container.appendChild(card);
         });
         setupDragAndDrop();
+    }
+    
+    function detectarPedidosRepetidos() {
+        const concluidos = todosPedidos.filter(p => p.status === 'concluido' && p.motoqueiroId);
+        const porNumero = new Map();
+        
+        concluidos.forEach(ped => {
+            if (!porNumero.has(ped.numero)) porNumero.set(ped.numero, []);
+            porNumero.get(ped.numero).push(ped.motoqueiroId);
+        });
+        
+        const repetidos = new Map();
+        const duplicadosLocal = new Map();
+        
+        concluidos.forEach(ped => {
+            const motoId = ped.motoqueiroId;
+            const numerosDoMoto = concluidos.filter(p => p.motoqueiroId === motoId).map(p => p.numero);
+            const contagemLocal = {};
+            numerosDoMoto.forEach(num => { contagemLocal[num] = (contagemLocal[num] || 0) + 1; });
+            const duplicadosLocalMoto = Object.keys(contagemLocal).filter(num => contagemLocal[num] > 1);
+            if (duplicadosLocalMoto.length > 0) duplicadosLocal.set(motoId, duplicadosLocalMoto);
+            
+            const numerosRepetidos = [];
+            const detalhes = [];
+            for (let [num, motos] of porNumero.entries()) {
+                if (motos.includes(motoId) && motos.length > 1) {
+                    numerosRepetidos.push(num);
+                    const outros = motos.filter(m => m !== motoId);
+                    const nomesOutros = outros.map(m => motoqueiros.find(mt => mt.id === m)?.nome || `Moto ${m}`).join(', ');
+                    detalhes.push(`#${num} (também com ${nomesOutros})`);
+                }
+            }
+            if (numerosRepetidos.length > 0) {
+                repetidos.set(motoId, { numeros: numerosRepetidos, detalhes });
+            }
+        });
+        
+        return { repetidos, duplicadosLocal };
+    }
+    
+    function contarOcorrencias(motoId, numero) {
+        return todosPedidos.filter(p => p.status === 'concluido' && p.motoqueiroId === motoId && p.numero === numero).length;
     }
 
     function abrirDetalhesMoto(motoId) {
@@ -802,6 +941,8 @@
         document.getElementById('modalEditarPedido').style.display = 'flex'; 
         pedidoDestaqueId = null;
         document.getElementById('buscaNumero').value = '';
+        // Fechar box de busca se estiver aberto
+        document.getElementById('resultadoBuscaBox').style.display = 'none';
     };
     
     function salvarEdicao() { 
@@ -822,16 +963,22 @@
         } 
         salvarDados(); atualizarInterfaceCompleta(); fecharModalEditar(); 
         showAlert(`✅ Pedido #${ped.numero} atualizado!`, 'success'); 
+        // Re-buscar se o número foi alterado
+        const buscaNumero = document.getElementById('buscaNumero').value;
+        if (buscaNumero) buscarPedido();
     }
     
     window.excluirPedido = function(id) { 
-        if (confirm("Excluir permanentemente?")) { 
+        if (confirm("⚠️ Excluir este pedido permanentemente?")) { 
             const index = todosPedidos.findIndex(p => p.id === id); 
             if (index !== -1) { 
                 const ped = todosPedidos[index]; 
                 todosPedidos.splice(index, 1); 
                 salvarDados(); atualizarInterfaceCompleta(); 
                 showAlert(`✅ Pedido #${ped.numero} excluído!`, 'success'); 
+                // Re-buscar
+                const buscaNumero = document.getElementById('buscaNumero').value;
+                if (buscaNumero) buscarPedido();
             } 
         } 
     };
@@ -847,6 +994,9 @@
         if (ped.motoqueiroId) ped.motoqueiroId = null; 
         salvarDados(); atualizarInterfaceCompleta(); 
         showAlert(`❌ Pedido #${ped.numero} cancelado!`, 'error'); 
+        // Re-buscar
+        const buscaNumero = document.getElementById('buscaNumero').value;
+        if (buscaNumero) buscarPedido();
     };
     
     function fecharModalEditar() { document.getElementById('modalEditarPedido').style.display = 'none'; }
