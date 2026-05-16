@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>Gestão de Entregas - Busca Destacada</title>
+    <title>Gestão de Entregas - Simplificada</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
         
@@ -221,12 +221,6 @@
         .btn-success { background: #22c55e; }
         .btn-danger { background: #ef4444; }
         
-        .date-controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; background: var(--card-bg); padding: 10px; border-radius: 20px; border: 1px solid var(--border); }
-        @media (min-width: 480px) { .date-controls { flex-direction: row; align-items: center; justify-content: space-between; } }
-        .turno-selector { display: flex; gap: 6px; background: #f1f5f9; padding: 3px; border-radius: 40px; width: fit-content; }
-        .turno-btn { background: transparent; color: #1e293b; padding: 5px 14px; width: auto; box-shadow: none; font-size: 0.75rem; }
-        .turno-btn.active { background: #3b82f6; color: white; }
-        
         .caixa-resumo { background: #f1f5f9; border-radius: 14px; padding: 10px; margin-top: 10px; color: #1e293b; font-size: 0.7rem; overflow-x: auto; }
         
         .alert-modal {
@@ -290,19 +284,6 @@
     <div class="status-bar">
         🔌 Firebase: <span id="firebaseStatus">Verificando...</span>
         <span style="margin-left: 12px;">💾 <span id="saveStatus"></span></span>
-    </div>
-    
-    <div class="date-controls">
-        <button id="btnDiaAnterior" class="btn-small">◀</button>
-        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span style="color: var(--text); font-size:0.8rem;">📅</span>
-            <input type="date" id="dataSelecionada" style="width: auto; background: var(--input-bg); color: var(--text); border-color: var(--border); padding: 6px 8px; font-size:0.8rem;">
-            <div class="turno-selector">
-                <button id="btnTurnoManha" class="turno-btn active">🌅 Manhã</button>
-                <button id="btnTurnoNoite" class="turno-btn">🌙 Noite</button>
-            </div>
-        </div>
-        <button id="btnDiaProximo" class="btn-small">▶</button>
     </div>
 
     <div class="busca-container">
@@ -489,8 +470,8 @@
     if (localStorage.getItem('modoNoturno') === 'true') document.body.classList.add('dark');
 
     let motoqueiros = [], todosPedidos = [], config = { caixaInicial: 0, despesas: [], confirmacoesCartao: {} };
-    let currentDate = new Date().toISOString().slice(0,10), currentTurno = "manha", isLoading = false, motoqueiroSelecionado = null, pedidosSelecionados = new Set();
-    let pedidoDestaqueId = null; // ID do pedido que está em destaque na busca
+    let isLoading = false, motoqueiroSelecionado = null, pedidosSelecionados = new Set();
+    let pedidoDestaqueId = null;
 
     const dadosIniciais = { pendentes: [
         { numero: "1436", valor: 0, pagamento: "online" }, { numero: "1467", valor: 0, pagamento: "online" }, { numero: "3722", valor: 0, pagamento: "online" },
@@ -502,7 +483,7 @@
     function showAlert(message, type) { const alertDiv = document.createElement('div'); alertDiv.className = `alert-modal ${type === 'success' ? 'success' : ''}`; alertDiv.innerHTML = message; document.body.appendChild(alertDiv); setTimeout(() => alertDiv.remove(), 4000); }
     function parseValor(s) { if (!s) return 0; let str = s.toString().replace(/\./g, '').replace(',', '.'); let num = parseFloat(str); return isNaN(num) ? 0 : num; }
     function formatarMoeda(v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
-    function getStorageKey() { return `entregas_busca_destaque_${currentDate}_${currentTurno}`; }
+    function getStorageKey() { return `entregas_simplificada`; }
     function showSaveStatus(msg, isError) { let el = document.getElementById('saveStatus'); el.innerHTML = msg; el.style.color = isError ? '#dc2626' : '#16a34a'; setTimeout(() => { if (el.innerHTML === msg) el.innerHTML = ''; }, 2000); }
 
     async function salvarDados() { if (isLoading) return; let dados = { motoqueiros, todosPedidos, config }; const key = getStorageKey(); localStorage.setItem(key, JSON.stringify(dados)); if (firebaseConnected && db) { try { await db.ref('delivery_data/' + key).set(dados); showSaveStatus('✅', false); } catch(e) { showSaveStatus('⚠️', true); } } }
@@ -584,7 +565,6 @@
         });
     }
 
-    // FUNÇÃO DE BUSCA - Mostra o pedido no TOPO da lista com destaque
     function buscarPedido() {
         const numero = document.getElementById('buscaNumero').value.trim();
         if (!numero) {
@@ -610,7 +590,6 @@
         const container = document.getElementById('pedidosPendentesLista');
         let pendentes = todosPedidos.filter(p => p.status === 'pendente');
         
-        // Ordenar: primeiro o pedido em destaque (se existir), depois os mais recentes
         if (pedidoDestaqueId) {
             const pedidoDestaque = pendentes.find(p => p.id === pedidoDestaqueId);
             if (pedidoDestaque) {
@@ -821,7 +800,6 @@
             selectMoto.appendChild(option); 
         }); 
         document.getElementById('modalEditarPedido').style.display = 'flex'; 
-        // Limpar destaque após editar
         pedidoDestaqueId = null;
         document.getElementById('buscaNumero').value = '';
     };
@@ -885,8 +863,7 @@
     function conferirCaixa() { if (!config.despesas) config.despesas = []; let vendasDinheiro = todosPedidos.filter(p => p.status === 'concluido' && p.pagamento === 'dinheiro').reduce((s,p) => s + p.valor, 0); let totalPegouCaixa = motoqueiros.reduce((s,m) => s + (m.acertos?.retiradaCaixa || 0), 0); let totalDespesas = config.despesas.reduce((s,d) => s + (d.valor || 0), 0); let caixaEsperado = vendasDinheiro + config.caixaInicial - totalDespesas - totalPegouCaixa; let caixaReal = parseValor(document.getElementById('caixaFinalReal').value); let falta = caixaEsperado - caixaReal; let msg = `<strong>📊 CAIXA</strong><br>➕ Vendas: ${formatarMoeda(vendasDinheiro)}<br>➕ Início: ${formatarMoeda(config.caixaInicial)}<br>➖ Despesas: ${formatarMoeda(totalDespesas)}<br>➖ Pegou: ${formatarMoeda(totalPegouCaixa)}<br><hr>🧾 Esperado: ${formatarMoeda(caixaEsperado)}`; if (!isNaN(caixaReal) && caixaReal !== 0) { msg += `<br>🔍 Real: ${formatarMoeda(caixaReal)}`; if (Math.abs(falta) > 10) msg += `<div style="background:#fee2e2; padding:6px; margin-top:6px;">⚠️ Dif: ${formatarMoeda(Math.abs(falta))}</div>`; else msg += `<div style="background:#dcfce7; padding:6px; margin-top:6px;">✅ OK (R$10)</div>`; } document.getElementById('resultadoConferencia').innerHTML = msg; }
 
     function gerarRelatorioWhatsApp() {
-        const dataFormatada = formatarDataBR(currentDate);
-        let lines = [`*📊 FECHAMENTO - ${dataFormatada} - ${currentTurno === 'manha' ? 'MANHÃ' : 'NOITE'}*`, ""];
+        let lines = [`*📊 FECHAMENTO DE CAIXA*`, ""];
         lines.push("*👤 MOTOQUEIROS*");
         motoqueiros.filter(m => m.ativo && m.entregas > 0).forEach(m => {
             const ac = m.acertos, beb = ac.bebidas, pixMoto = m.valoresPorPagamento.pix_moto, pegouCaixa = ac.retiradaCaixa, totalDesconto = pixMoto + pegouCaixa;
@@ -908,19 +885,15 @@
     function enviarWhatsApp() { window.open(`https://wa.me/?text=${encodeURIComponent(gerarRelatorioWhatsApp())}`, '_blank'); }
     function atualizarQtdeMotos() { let nova = parseInt(document.getElementById('qtdeMotosAtivos').value); if (isNaN(nova)) nova = 5; nova = Math.min(15, Math.max(1, nova)); while (motoqueiros.length < nova) motoqueiros.push({ id: motoqueiros.length + 1, nome: `Motoqueiro ${motoqueiros.length + 1}`, ativo: true, entregas: 0, valorTotal: 0, valoresPorPagamento: { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 }, acertos: { retiradaCaixa:0, pixMoto:0, bebidas:{suco:0,lata:0,litro:0,valor:0} } }); motoqueiros.forEach(m => m.ativo = m.id <= nova); salvarDados(); atualizarInterfaceCompleta(); }
     function atualizarInterfaceCompleta() { recalcularTotais(); renderizarPedidosPendentes(); renderizarPedidosConcluidos(); renderizarPedidosCancelados(); renderizarMotoqueiros(); renderizarDespesas(); renderizarConferenciaCartao(); document.getElementById('caixaInicial').value = formatarMoeda(config.caixaInicial); conferirCaixa(); }
-    function apagarTudo() { let senha = prompt("Senha:"); if (senha !== "Heimer245") { alert("Senha incorreta"); return; } if (!confirm(`Apagar ${currentDate} ${currentTurno}?`)) return; motoqueiros = []; todosPedidos = []; config = { caixaInicial: 0, despesas: [], confirmacoesCartao: {} }; for (let i = 1; i <= 5; i++) motoqueiros.push({ id: i, nome: `Motoqueiro ${i}`, ativo: true, entregas: 0, valorTotal: 0, valoresPorPagamento: { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 }, acertos: { retiradaCaixa:0, pixMoto:0, bebidas:{suco:0,lata:0,litro:0,valor:0} } }); pedidosSelecionados.clear(); motoqueiroSelecionado = null; salvarDados(); atualizarInterfaceCompleta(); showAlert("✅ Dados apagados!", 'success'); }
-    function mudarData(delta) { let d = new Date(currentDate); d.setDate(d.getDate() + delta); currentDate = d.toISOString().slice(0,10); document.getElementById('dataSelecionada').value = currentDate; pedidosSelecionados.clear(); motoqueiroSelecionado = null; carregarDados(); }
-    function mudarTurno(turno) { currentTurno = turno; document.getElementById('btnTurnoManha').classList.toggle('active', turno === 'manha'); document.getElementById('btnTurnoNoite').classList.toggle('active', turno === 'noite'); pedidosSelecionados.clear(); motoqueiroSelecionado = null; carregarDados(); }
+    function apagarTudo() { let senha = prompt("Senha:"); if (senha !== "Heimer245") { alert("Senha incorreta"); return; } if (!confirm(`Apagar TODOS os dados?`)) return; motoqueiros = []; todosPedidos = []; config = { caixaInicial: 0, despesas: [], confirmacoesCartao: {} }; for (let i = 1; i <= 5; i++) motoqueiros.push({ id: i, nome: `Motoqueiro ${i}`, ativo: true, entregas: 0, valorTotal: 0, valoresPorPagamento: { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 }, acertos: { retiradaCaixa:0, pixMoto:0, bebidas:{suco:0,lata:0,litro:0,valor:0} } }); pedidosSelecionados.clear(); motoqueiroSelecionado = null; salvarDados(); atualizarInterfaceCompleta(); showAlert("✅ Dados apagados!", 'success'); }
 
-    document.addEventListener('DOMContentLoaded', () => { let today = new Date().toISOString().slice(0,10); currentDate = today; document.getElementById('dataSelecionada').value = today; carregarDados();
+    document.addEventListener('DOMContentLoaded', () => { carregarDados();
         document.getElementById('btnModoNoturno').onclick = toggleModoNoturno; document.getElementById('btnRegistrar').onclick = registrarPedido;
         document.getElementById('btnSelecionarTodos').onclick = selecionarTodos; document.getElementById('btnLimparSelecao').onclick = limparSelecao;
         document.getElementById('btnAssociarSelecionados').onclick = associarSelecionados; document.getElementById('btnAddDespesa').onclick = adicionarDespesa;
         document.getElementById('btnSalvarCaixa').onclick = salvarCaixaInicial; document.getElementById('btnConferirCaixa').onclick = conferirCaixa;
         document.getElementById('btnAtualizarMotos').onclick = atualizarQtdeMotos; document.getElementById('btnRelatorioWhatsApp').onclick = enviarWhatsApp;
-        document.getElementById('btnApagarTudo').onclick = apagarTudo; document.getElementById('btnDiaAnterior').onclick = () => mudarData(-1);
-        document.getElementById('btnDiaProximo').onclick = () => mudarData(1); document.getElementById('btnTurnoManha').onclick = () => mudarTurno('manha');
-        document.getElementById('btnTurnoNoite').onclick = () => mudarTurno('noite'); document.getElementById('dataSelecionada').onchange = (e) => { currentDate = e.target.value; carregarDados(); };
+        document.getElementById('btnApagarTudo').onclick = apagarTudo;
         document.getElementById('btnSalvarEdicao').onclick = salvarEdicao; document.getElementById('btnSalvarAcertos').onclick = salvarAcertos;
         document.getElementById('btnSalvarEdicaoMoto').onclick = salvarEdicaoMoto;
         document.getElementById('btnBuscarPedido').onclick = buscarPedido;
