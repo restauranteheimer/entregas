@@ -243,7 +243,89 @@
         
         .drag-hint { font-size: 0.6rem; color: #64748b; text-align: center; margin-top: 8px; padding: 6px; background: var(--moto-bg); border-radius: 10px; }
         
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .cartao-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .cartao-count {
+            background: #3b82f6;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: white;
+        }
+        .cartao-count.confirmados { background: #22c55e; }
+        .cartao-count.pendentes { background: #f59e0b; }
+        .cartao-lista {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .cartao-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: var(--cartao-bg);
+            border-radius: 12px;
+            border-left: 4px solid #f59e0b;
+        }
+        .cartao-item.confirmado {
+            border-left-color: #22c55e;
+            background: var(--cartao-confirmado);
+            opacity: 0.8;
+        }
+        .cartao-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .cartao-numero {
+            font-weight: 800;
+            font-size: 0.9rem;
+        }
+        .cartao-parcela {
+            font-size: 0.7rem;
+            opacity: 0.7;
+        }
+        .cartao-valor {
+            font-weight: 800;
+            font-size: 0.9rem;
+        }
+        .btn-confirmar {
+            background: #22c55e;
+            padding: 5px 12px;
+            font-size: 0.7rem;
+        }
+        .btn-confirmar.confirmado {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .pedido-moto-item {
+            background: var(--pedido-bg);
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border);
+        }
+        .pedido-moto-info {
+            flex: 1;
+        }
+        .pedido-moto-acoes {
+            display: flex;
+            gap: 5px;
+        }
     </style>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -865,6 +947,11 @@
     }
 
     window.excluirPedidoMoto = function(id) {
+        let senha = prompt("🔒 Para EXCLUIR este pedido, digite a senha:");
+        if (senha !== "Programador942853") {
+            alert("❌ Senha incorreta! Exclusão não autorizada.");
+            return;
+        }
         if (confirm("⚠️ Excluir este pedido permanentemente?")) {
             const index = todosPedidos.findIndex(p => p.id === id);
             if (index !== -1) {
@@ -880,6 +967,11 @@
     };
 
     window.cancelarPedidoMoto = function(id) {
+        let senha = prompt("🔒 Para CANCELAR este pedido, digite a senha:");
+        if (senha !== "Programador942853") {
+            alert("❌ Senha incorreta! Cancelamento não autorizado.");
+            return;
+        }
         const ped = todosPedidos.find(p => p.id === id);
         if (!ped || ped.status === 'cancelado') return;
         const motivo = prompt("Motivo do cancelamento:");
@@ -941,7 +1033,6 @@
         document.getElementById('modalEditarPedido').style.display = 'flex'; 
         pedidoDestaqueId = null;
         document.getElementById('buscaNumero').value = '';
-        // Fechar box de busca se estiver aberto
         document.getElementById('resultadoBuscaBox').style.display = 'none';
     };
     
@@ -963,12 +1054,16 @@
         } 
         salvarDados(); atualizarInterfaceCompleta(); fecharModalEditar(); 
         showAlert(`✅ Pedido #${ped.numero} atualizado!`, 'success'); 
-        // Re-buscar se o número foi alterado
         const buscaNumero = document.getElementById('buscaNumero').value;
         if (buscaNumero) buscarPedido();
     }
     
     window.excluirPedido = function(id) { 
+        let senha = prompt("🔒 Para EXCLUIR este pedido, digite a senha:");
+        if (senha !== "Programador942853") {
+            alert("❌ Senha incorreta! Exclusão não autorizada.");
+            return;
+        }
         if (confirm("⚠️ Excluir este pedido permanentemente?")) { 
             const index = todosPedidos.findIndex(p => p.id === id); 
             if (index !== -1) { 
@@ -976,7 +1071,6 @@
                 todosPedidos.splice(index, 1); 
                 salvarDados(); atualizarInterfaceCompleta(); 
                 showAlert(`✅ Pedido #${ped.numero} excluído!`, 'success'); 
-                // Re-buscar
                 const buscaNumero = document.getElementById('buscaNumero').value;
                 if (buscaNumero) buscarPedido();
             } 
@@ -984,6 +1078,11 @@
     };
     
     window.cancelarPedido = function(id) { 
+        let senha = prompt("🔒 Para CANCELAR este pedido, digite a senha:");
+        if (senha !== "Programador942853") {
+            alert("❌ Senha incorreta! Cancelamento não autorizado.");
+            return;
+        }
         const ped = todosPedidos.find(p => p.id === id); 
         if (!ped || ped.status === 'cancelado') return; 
         const motivo = prompt("Motivo:"); 
@@ -994,7 +1093,6 @@
         if (ped.motoqueiroId) ped.motoqueiroId = null; 
         salvarDados(); atualizarInterfaceCompleta(); 
         showAlert(`❌ Pedido #${ped.numero} cancelado!`, 'error'); 
-        // Re-buscar
         const buscaNumero = document.getElementById('buscaNumero').value;
         if (buscaNumero) buscarPedido();
     };
@@ -1035,25 +1133,72 @@
     function enviarWhatsApp() { window.open(`https://wa.me/?text=${encodeURIComponent(gerarRelatorioWhatsApp())}`, '_blank'); }
     function atualizarQtdeMotos() { let nova = parseInt(document.getElementById('qtdeMotosAtivos').value); if (isNaN(nova)) nova = 5; nova = Math.min(15, Math.max(1, nova)); while (motoqueiros.length < nova) motoqueiros.push({ id: motoqueiros.length + 1, nome: `Motoqueiro ${motoqueiros.length + 1}`, ativo: true, entregas: 0, valorTotal: 0, valoresPorPagamento: { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 }, acertos: { retiradaCaixa:0, pixMoto:0, bebidas:{suco:0,lata:0,litro:0,valor:0} } }); motoqueiros.forEach(m => m.ativo = m.id <= nova); salvarDados(); atualizarInterfaceCompleta(); }
     function atualizarInterfaceCompleta() { recalcularTotais(); renderizarPedidosPendentes(); renderizarPedidosConcluidos(); renderizarPedidosCancelados(); renderizarMotoqueiros(); renderizarDespesas(); renderizarConferenciaCartao(); document.getElementById('caixaInicial').value = formatarMoeda(config.caixaInicial); conferirCaixa(); }
-    function apagarTudo() { let senha = prompt("Senha:"); if (senha !== "Heimer245") { alert("Senha incorreta"); return; } if (!confirm(`Apagar TODOS os dados?`)) return; motoqueiros = []; todosPedidos = []; config = { caixaInicial: 0, despesas: [], confirmacoesCartao: {} }; for (let i = 1; i <= 5; i++) motoqueiros.push({ id: i, nome: `Motoqueiro ${i}`, ativo: true, entregas: 0, valorTotal: 0, valoresPorPagamento: { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 }, acertos: { retiradaCaixa:0, pixMoto:0, bebidas:{suco:0,lata:0,litro:0,valor:0} } }); pedidosSelecionados.clear(); motoqueiroSelecionado = null; salvarDados(); atualizarInterfaceCompleta(); showAlert("✅ Dados apagados!", 'success'); }
+    
+    // Função apagar tudo com senha
+    function apagarTudo() {
+        let senha = prompt("🔒 Para apagar TODOS os dados, digite a senha:");
+        if (senha !== "Programador942853") {
+            alert("❌ Senha incorreta! Ação cancelada.");
+            return;
+        }
+        if (!confirm(`⚠️ ATENÇÃO: Isso apagará todos os pedidos, motoqueiros e configurações. Confirmar?`)) return;
+        
+        motoqueiros = [];
+        todosPedidos = [];
+        config = { caixaInicial: 0, despesas: [], confirmacoesCartao: {} };
+        for (let i = 1; i <= 5; i++) {
+            motoqueiros.push({
+                id: i, nome: `Motoqueiro ${i}`, ativo: true, entregas: 0, valorTotal: 0,
+                valoresPorPagamento: { dinheiro: 0, pix: 0, cartao: 0, pix_moto: 0, online: 0 },
+                acertos: { retiradaCaixa: 0, pixMoto: 0, bebidas: { suco: 0, lata: 0, litro: 0, valor: 0 } }
+            });
+        }
+        pedidosSelecionados.clear();
+        motoqueiroSelecionado = null;
+        salvarDados();
+        atualizarInterfaceCompleta();
+        showAlert("✅ Todos os dados foram apagados com sucesso!", 'success');
+    }
 
-    document.addEventListener('DOMContentLoaded', () => { carregarDados();
-        document.getElementById('btnModoNoturno').onclick = toggleModoNoturno; document.getElementById('btnRegistrar').onclick = registrarPedido;
-        document.getElementById('btnSelecionarTodos').onclick = selecionarTodos; document.getElementById('btnLimparSelecao').onclick = limparSelecao;
-        document.getElementById('btnAssociarSelecionados').onclick = associarSelecionados; document.getElementById('btnAddDespesa').onclick = adicionarDespesa;
-        document.getElementById('btnSalvarCaixa').onclick = salvarCaixaInicial; document.getElementById('btnConferirCaixa').onclick = conferirCaixa;
-        document.getElementById('btnAtualizarMotos').onclick = atualizarQtdeMotos; document.getElementById('btnRelatorioWhatsApp').onclick = enviarWhatsApp;
+    document.addEventListener('DOMContentLoaded', () => { 
+        carregarDados();
+        document.getElementById('btnModoNoturno').onclick = toggleModoNoturno; 
+        document.getElementById('btnRegistrar').onclick = registrarPedido;
+        document.getElementById('btnSelecionarTodos').onclick = selecionarTodos; 
+        document.getElementById('btnLimparSelecao').onclick = limparSelecao;
+        document.getElementById('btnAssociarSelecionados').onclick = associarSelecionados; 
+        document.getElementById('btnAddDespesa').onclick = adicionarDespesa;
+        document.getElementById('btnSalvarCaixa').onclick = salvarCaixaInicial; 
+        document.getElementById('btnConferirCaixa').onclick = conferirCaixa;
+        document.getElementById('btnAtualizarMotos').onclick = atualizarQtdeMotos; 
+        document.getElementById('btnRelatorioWhatsApp').onclick = enviarWhatsApp;
         document.getElementById('btnApagarTudo').onclick = apagarTudo;
-        document.getElementById('btnSalvarEdicao').onclick = salvarEdicao; document.getElementById('btnSalvarAcertos').onclick = salvarAcertos;
+        document.getElementById('btnSalvarEdicao').onclick = salvarEdicao; 
+        document.getElementById('btnSalvarAcertos').onclick = salvarAcertos;
         document.getElementById('btnSalvarEdicaoMoto').onclick = salvarEdicaoMoto;
         document.getElementById('btnBuscarPedido').onclick = buscarPedido;
         document.getElementById('buscaNumero').addEventListener('keypress', (e) => { if (e.key === 'Enter') buscarPedido(); });
         document.getElementById('pedidoNumero').addEventListener('keypress', e => { if(e.key === 'Enter') registrarPedido(); });
         document.querySelectorAll('.numero-only').forEach(inp => { inp.oninput = function() { this.value = this.value.replace(/\D/g, ''); }; inp.onfocus = function() { this.select(); }; });
         document.querySelectorAll('.valor-input').forEach(inp => { inp.onfocus = function() { this.select(); }; inp.oninput = function() { this.value = this.value.replace(/[^0-9,]/g, ''); }; });
-        window.fecharModalEditar = fecharModalEditar; window.fecharModalAcertos = fecharModalAcertos; window.fecharModalMoto = fecharModalMoto; window.fecharModalEditarMoto = fecharModalEditarMoto;
-        document.querySelectorAll('.close-modal').forEach(btn => { btn.onclick = () => { document.getElementById('modalEditarPedido').style.display = 'none'; document.getElementById('modalAcertosMoto').style.display = 'none'; document.getElementById('modalMotoDetalhes').style.display = 'none'; document.getElementById('modalEditarPedidoMoto').style.display = 'none'; }; });
-        window.onclick = (e) => { if (e.target === document.getElementById('modalEditarPedido')) fecharModalEditar(); if (e.target === document.getElementById('modalAcertosMoto')) fecharModalAcertos(); if (e.target === document.getElementById('modalMotoDetalhes')) fecharModalMoto(); if (e.target === document.getElementById('modalEditarPedidoMoto')) fecharModalEditarMoto(); };
+        window.fecharModalEditar = fecharModalEditar; 
+        window.fecharModalAcertos = fecharModalAcertos; 
+        window.fecharModalMoto = fecharModalMoto; 
+        window.fecharModalEditarMoto = fecharModalEditarMoto;
+        document.querySelectorAll('.close-modal').forEach(btn => { 
+            btn.onclick = () => { 
+                document.getElementById('modalEditarPedido').style.display = 'none'; 
+                document.getElementById('modalAcertosMoto').style.display = 'none'; 
+                document.getElementById('modalMotoDetalhes').style.display = 'none'; 
+                document.getElementById('modalEditarPedidoMoto').style.display = 'none'; 
+            }; 
+        });
+        window.onclick = (e) => { 
+            if (e.target === document.getElementById('modalEditarPedido')) fecharModalEditar(); 
+            if (e.target === document.getElementById('modalAcertosMoto')) fecharModalAcertos(); 
+            if (e.target === document.getElementById('modalMotoDetalhes')) fecharModalMoto(); 
+            if (e.target === document.getElementById('modalEditarPedidoMoto')) fecharModalEditarMoto(); 
+        };
         window.toggleConfirmacaoCartao = toggleConfirmacaoCartao;
         setInterval(() => { if (!isLoading) carregarDados(); }, 30000);
     });
