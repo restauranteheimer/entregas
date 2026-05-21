@@ -104,26 +104,66 @@
         .pedido-card.pendente { background: var(--pedido-pendente); border-left-color: #f59e0b; }
         .pedido-card.multiplo { background: var(--pedido-multiplo); border-left-color: #ec4899; }
         
-        .motos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-        @media (max-width: 480px) { .motos-grid { grid-template-columns: 1fr; } }
+        .motos-grid { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            max-height: 600px; 
+            overflow-y: auto; 
+            padding: 5px;
+        }
         
         .moto-card {
             background: var(--moto-bg);
             border-radius: 16px;
             padding: 12px;
-            cursor: pointer;
+            cursor: grab;
             transition: all 0.2s;
             border: 2px solid var(--border);
             color: var(--text);
             font-size: 0.8rem;
             position: relative;
+            user-select: none;
+        }
+        .moto-card:active { cursor: grabbing; }
+        .moto-card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .moto-card.drag-over-top {
+            border-top: 3px solid #3b82f6;
+            margin-top: -1px;
+        }
+        .moto-card.drag-over-bottom {
+            border-bottom: 3px solid #3b82f6;
+            margin-bottom: -1px;
         }
         .moto-card.cartao { background: var(--moto-cartao-bg); }
         .moto-card.repetido { background: var(--moto-repetido-bg); border-color: #ef4444; }
         .moto-card.duplicado { background: var(--moto-duplicado-bg); border-color: #f59e0b; }
-        .moto-card.drag-over { border-color: #3b82f6; background: #eff6ff; transform: scale(1.01); }
         .moto-card.selecionado { border-color: #3b82f6; background: #eff6ff; color: #1e293b; }
         body.dark .moto-card.selecionado { background: #3b82f6; color: white; }
+        
+        .moto-drag-handle {
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: grab;
+            font-size: 1.2rem;
+            color: #9ca3af;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .moto-card:hover .moto-drag-handle {
+            opacity: 1;
+            color: #3b82f6;
+        }
+        .moto-drag-handle:active { cursor: grabbing; }
+        
+        .moto-content {
+            margin-left: 28px;
+        }
         
         .moto-badge {
             position: absolute;
@@ -152,6 +192,18 @@
             margin-top: 6px;
             text-align: left;
             border-left: 3px solid #ef4444;
+        }
+        
+        .ordem-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            justify-content: flex-end;
+        }
+        .btn-ordem {
+            background: #64748b;
+            padding: 5px 10px;
+            font-size: 0.7rem;
         }
         
         /* BOX DE RESULTADO DA BUSCA */
@@ -242,8 +294,6 @@
         .close-modal { float: right; font-size: 24px; cursor: pointer; }
         
         .drag-hint { font-size: 0.6rem; color: #64748b; text-align: center; margin-top: 8px; padding: 6px; background: var(--moto-bg); border-radius: 10px; }
-        
-        @keyframes fadeIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         
         .cartao-header {
             display: flex;
@@ -401,8 +451,13 @@
                     <button id="btnAtualizarMotos" class="btn-small">OK</button>
                 </div>
             </div>
+            <div class="ordem-buttons">
+                <button id="btnOrdenarNome" class="btn-small btn-ordem">📝 Ordenar por Nome</button>
+                <button id="btnOrdenarEntregas" class="btn-small btn-ordem">📊 Ordenar por Entregas</button>
+                <button id="btnResetarOrdem" class="btn-small btn-ordem">🔄 Resetar Ordem</button>
+            </div>
             <div id="motosContainer" class="motos-grid"></div>
-            <div class="drag-hint">💡 Clique no card para ver pedidos | ✏️ Duplo toque no nome para editar</div>
+            <div class="drag-hint">💡 Arraste o ícone ≡ para reorganizar os cards | Clique no card para ver pedidos | ✏️ Duplo toque no nome para editar</div>
         </div>
 
         <div class="card">
@@ -539,9 +594,10 @@
     function toggleModoNoturno() { document.body.classList.toggle('dark'); localStorage.setItem('modoNoturno', document.body.classList.contains('dark')); }
     if (localStorage.getItem('modoNoturno') === 'true') document.body.classList.add('dark');
 
-    let motoqueiros = [], todosPedidos = [], config = { caixaInicial: 0, despesas: [], confirmacoesCartao: {} };
+    let motoqueiros = [], todosPedidos = [], config = { caixaInicial: 0, despesas: [], confirmacoesCartao: {}, ordemMotos: [] };
     let isLoading = false, motoqueiroSelecionado = null, pedidosSelecionados = new Set();
     let pedidoDestaqueId = null;
+    let draggedMotoIndex = null;
 
     const dadosIniciais = { pendentes: [
         { numero: "1436", valor: 0, pagamento: "online" }, { numero: "1467", valor: 0, pagamento: "online" }, { numero: "3722", valor: 0, pagamento: "online" },
@@ -561,8 +617,9 @@
     async function carregarDados() {
         if (isLoading) return; isLoading = true; const key = getStorageKey(); let dados = null;
         if (firebaseConnected && db) { try { const snap = await db.ref('delivery_data/' + key).once('value'); if (snap.exists()) dados = snap.val(); else { const local = localStorage.getItem(key); if (local) dados = JSON.parse(local); } } catch(e) { const local = localStorage.getItem(key); if (local) dados = JSON.parse(local); } } else { const local = localStorage.getItem(key); if (local) dados = JSON.parse(local); }
-        if (dados) { motoqueiros = dados.motoqueiros || []; todosPedidos = dados.todosPedidos || []; config = dados.config || { caixaInicial: 0, despesas: [], confirmacoesCartao: {} }; } else { motoqueiros = []; todosPedidos = []; config = { caixaInicial: 0, despesas: [], confirmacoesCartao: {} }; dadosIniciais.pendentes.forEach(p => { todosPedidos.push({ id: Date.now() + "-" + Math.random().toString(36).substr(2,6), numero: p.numero, valor: p.valor, pagamento: p.pagamento, status: 'pendente', data: new Date().toLocaleString() }); }); }
+        if (dados) { motoqueiros = dados.motoqueiros || []; todosPedidos = dados.todosPedidos || []; config = dados.config || { caixaInicial: 0, despesas: [], confirmacoesCartao: {}, ordemMotos: [] }; } else { motoqueiros = []; todosPedidos = []; config = { caixaInicial: 0, despesas: [], confirmacoesCartao: {}, ordemMotos: [] }; dadosIniciais.pendentes.forEach(p => { todosPedidos.push({ id: Date.now() + "-" + Math.random().toString(36).substr(2,6), numero: p.numero, valor: p.valor, pagamento: p.pagamento, status: 'pendente', data: new Date().toLocaleString() }); }); }
         if (!config.confirmacoesCartao) config.confirmacoesCartao = {};
+        if (!config.ordemMotos) config.ordemMotos = [];
         if (motoqueiros.length === 0) { for (let i = 1; i <= 5; i++) motoqueiros.push({ id: i, nome: `Motoqueiro ${i}`, ativo: true, entregas: 0, valorTotal: 0, valoresPorPagamento: { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 }, acertos: { retiradaCaixa: 0, pixMoto: 0, bebidas: { suco:0, lata:0, litro:0, valor:0 } } }); }
         motoqueiros.forEach(m => { if (!m.acertos) m.acertos = { retiradaCaixa:0, pixMoto:0, bebidas:{suco:0,lata:0,litro:0,valor:0} }; if (!m.valoresPorPagamento) m.valoresPorPagamento = { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 }; });
         recalcularTotais(); atualizarInterfaceCompleta(); isLoading = false;
@@ -640,7 +697,7 @@
         });
     }
 
-    // FUNÇÃO DE BUSCA - Busca em TODOS os pedidos
+    // FUNÇÃO DE BUSCA
     function buscarPedido() {
         const numero = document.getElementById('buscaNumero').value.trim();
         const resultBox = document.getElementById('resultadoBuscaBox');
@@ -738,8 +795,6 @@
         
         container.innerHTML = pendentes.map((ped, index) => {
             let classeExtra = numerosMultiplos.has(ped.numero) ? 'multiplo' : 'pendente';
-            const isDestaque = (pedidoDestaqueId === ped.id);
-            
             const pagamentoLabel = ped.pagamento === 'dinheiro' ? '💵 Dinheiro' : 
                                    ped.pagamento === 'pix' ? '📱 Pix' : 
                                    ped.pagamento === 'cartao' ? '💳 Cartão' :
@@ -765,12 +820,133 @@
     function renderizarPedidosConcluidos() { const container = document.getElementById('pedidosConcluidosLista'); const concluidos = todosPedidos.filter(p => p.status === 'concluido').slice(-20); if (concluidos.length === 0) { container.innerHTML = '<span>Nenhum</span>'; return; } container.innerHTML = concluidos.map(ped => { const moto = motoqueiros.find(m => m.id === ped.motoqueiroId); return `<span style="background:#e8f5e9; padding:3px 8px; border-radius:20px; font-size:0.65rem;">#${ped.numero} → ${moto ? moto.nome : '?'}</span>`; }).join(''); }
     function renderizarPedidosCancelados() { const container = document.getElementById('pedidosCanceladosLista'); const cancelados = todosPedidos.filter(p => p.status === 'cancelado').slice(-20); if (cancelados.length === 0) { container.innerHTML = '<span>Nenhum</span>'; return; } container.innerHTML = cancelados.map(ped => `<span style="background:#fee2e2; padding:3px 8px; border-radius:20px; font-size:0.65rem; text-decoration:line-through;">#${ped.numero}</span>`).join(''); }
 
+    // Função para obter a ordem atual dos motoqueiros
+    function getMotosOrdenadas() {
+        const ativos = motoqueiros.filter(m => m.ativo);
+        if (config.ordemMotos && config.ordemMotos.length === ativos.length) {
+            // Aplicar ordem salva
+            const ordenados = [];
+            for (let id of config.ordemMotos) {
+                const moto = ativos.find(m => m.id === id);
+                if (moto) ordenados.push(moto);
+            }
+            // Adicionar qualquer moto que não esteja na ordem
+            for (let moto of ativos) {
+                if (!ordenados.find(m => m.id === moto.id)) {
+                    ordenados.push(moto);
+                }
+            }
+            return ordenados;
+        }
+        return ativos;
+    }
+
+    // Salvar ordem atual
+    function salvarOrdemMotos() {
+        const ativos = motoqueiros.filter(m => m.ativo);
+        config.ordemMotos = ativos.map(m => m.id);
+        salvarDados();
+    }
+
+    // Reordenar motoqueiros
+    function reordenarMotos(deIndex, paraIndex) {
+        const ativos = getMotosOrdenadas();
+        if (deIndex < 0 || deIndex >= ativos.length || paraIndex < 0 || paraIndex >= ativos.length) return;
+        
+        const [movedMoto] = ativos.splice(deIndex, 1);
+        ativos.splice(paraIndex, 0, movedMoto);
+        
+        config.ordemMotos = ativos.map(m => m.id);
+        salvarDados();
+        renderizarMotoqueiros();
+        showAlert(`✅ Ordem alterada!`, 'success');
+    }
+
+    // Ordenar por nome
+    function ordenarPorNome() {
+        const ativos = motoqueiros.filter(m => m.ativo);
+        ativos.sort((a, b) => a.nome.localeCompare(b.nome));
+        config.ordemMotos = ativos.map(m => m.id);
+        salvarDados();
+        renderizarMotoqueiros();
+        showAlert(`✅ Ordenado por nome!`, 'success');
+    }
+
+    // Ordenar por entregas
+    function ordenarPorEntregas() {
+        const ativos = motoqueiros.filter(m => m.ativo);
+        ativos.sort((a, b) => b.entregas - a.entregas);
+        config.ordemMotos = ativos.map(m => m.id);
+        salvarDados();
+        renderizarMotoqueiros();
+        showAlert(`✅ Ordenado por entregas!`, 'success');
+    }
+
+    // Resetar ordem
+    function resetarOrdem() {
+        config.ordemMotos = [];
+        salvarDados();
+        renderizarMotoqueiros();
+        showAlert(`✅ Ordem resetada!`, 'success');
+    }
+
+    // Função para iniciar drag do motoqueiro
+    function iniciarDragMoto(e, index) {
+        draggedMotoIndex = index;
+        e.dataTransfer.setData('text/plain', index);
+        e.target.closest('.moto-card')?.classList.add('dragging');
+    }
+
+    function finalizarDragMoto(e) {
+        e.target.closest('.moto-card')?.classList.remove('dragging');
+        draggedMotoIndex = null;
+        document.querySelectorAll('.moto-card').forEach(card => {
+            card.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+    }
+
+    function dragOverMoto(e, targetIndex, element) {
+        e.preventDefault();
+        if (draggedMotoIndex === null) return;
+        
+        const rect = element.getBoundingClientRect();
+        const mouseY = e.clientY;
+        const middleY = rect.top + rect.height / 2;
+        
+        element.classList.remove('drag-over-top', 'drag-over-bottom');
+        
+        if (mouseY < middleY) {
+            element.classList.add('drag-over-top');
+        } else {
+            element.classList.add('drag-over-bottom');
+        }
+    }
+
+    function soltarMoto(e, targetIndex, element) {
+        e.preventDefault();
+        if (draggedMotoIndex !== null && draggedMotoIndex !== targetIndex) {
+            const mouseY = e.clientY;
+            const rect = element.getBoundingClientRect();
+            const middleY = rect.top + rect.height / 2;
+            let paraIndex = targetIndex;
+            if (mouseY > middleY) {
+                paraIndex = targetIndex + 1;
+            }
+            if (paraIndex > draggedMotoIndex) {
+                paraIndex--;
+            }
+            reordenarMotos(draggedMotoIndex, paraIndex);
+        }
+        finalizarDragMoto(e);
+    }
+
     function renderizarMotoqueiros() {
         const container = document.getElementById('motosContainer'); 
         container.innerHTML = "";
         const { repetidos, duplicadosLocal } = detectarPedidosRepetidos();
+        const motosOrdenadas = getMotosOrdenadas();
         
-        motoqueiros.filter(m => m.ativo).forEach(moto => {
+        motosOrdenadas.forEach((moto, idx) => {
             const ac = moto.acertos; 
             const beb = ac.bebidas;
             const temCartao = motoqueiroTemCartao(moto.id);
@@ -805,7 +981,24 @@
             const card = document.createElement('div'); 
             card.className = `moto-card ${temCartao ? 'cartao' : ''} ${classeExtra} ${motoqueiroSelecionado === moto.id ? 'selecionado' : ''}`; 
             card.setAttribute("data-id", moto.id);
-            card.onclick = (e) => { if (!e.target.classList.contains('moto-nome') && !e.target.classList.contains('btn-editar-acertos')) { motoqueiroSelecionado = moto.id; renderizarMotoqueiros(); abrirDetalhesMoto(moto.id); } };
+            card.setAttribute("draggable", "true");
+            card.setAttribute("data-index", idx);
+            
+            // Eventos de drag para reorganização
+            card.ondragstart = (e) => { iniciarDragMoto(e, idx); };
+            card.ondragend = (e) => { finalizarDragMoto(e); };
+            card.ondragover = (e) => { dragOverMoto(e, idx, card); };
+            card.ondrop = (e) => { soltarMoto(e, idx, card); };
+            
+            card.onclick = (e) => { 
+                if (!e.target.classList.contains('moto-nome') && 
+                    !e.target.classList.contains('btn-editar-acertos') &&
+                    !e.target.classList.contains('moto-drag-handle')) { 
+                    motoqueiroSelecionado = moto.id; 
+                    renderizarMotoqueiros(); 
+                    abrirDetalhesMoto(moto.id); 
+                } 
+            };
             
             let badgeHtml = '';
             if (badgeTexto) {
@@ -814,21 +1007,25 @@
             
             card.innerHTML = `
                 ${badgeHtml}
-                <div class="moto-nome">✏️ ${moto.nome}</div>
-                <div class="moto-entregas">${moto.entregas}</div>
-                <div class="moto-valor">💰 ${formatarMoeda(moto.valorTotal)}</div>
-                <div class="moto-acertos">
-                    <div>💵 Din: ${formatarMoeda(moto.valoresPorPagamento.dinheiro)}</div>
-                    <div>📲 Pix Moto: ${formatarMoeda(moto.valoresPorPagamento.pix_moto)}</div>
-                    <div>💰 Pegou: ${formatarMoeda(ac.retiradaCaixa)}</div>
-                    <div>🥤 ${beb.suco} 🥫 ${beb.lata} 🧃 ${beb.litro}</div>
+                <div class="moto-drag-handle">⋮⋮</div>
+                <div class="moto-content">
+                    <div class="moto-nome">✏️ ${moto.nome}</div>
+                    <div class="moto-entregas">${moto.entregas}</div>
+                    <div class="moto-valor">💰 ${formatarMoeda(moto.valorTotal)}</div>
+                    <div class="moto-acertos">
+                        <div>💵 Din: ${formatarMoeda(moto.valoresPorPagamento.dinheiro)}</div>
+                        <div>📲 Pix Moto: ${formatarMoeda(moto.valoresPorPagamento.pix_moto)}</div>
+                        <div>💰 Pegou: ${formatarMoeda(ac.retiradaCaixa)}</div>
+                        <div>🥤 ${beb.suco} 🥫 ${beb.lata} 🧃 ${beb.litro}</div>
+                    </div>
+                    ${listaRepetidos}
+                    <button class="btn-small btn-editar-acertos" style="margin-top:5px; background:#8b5cf6;" onclick="event.stopPropagation(); abrirEditarAcertos(${moto.id})">✏️ Editar acertos</button>
                 </div>
-                ${listaRepetidos}
-                <button class="btn-small btn-editar-acertos" style="margin-top:5px; background:#8b5cf6;" onclick="event.stopPropagation(); abrirEditarAcertos(${moto.id})">✏️ Editar acertos</button>
             `;
             
             const nomeSpan = card.querySelector('.moto-nome'); 
             nomeSpan.ondblclick = (e) => { e.stopPropagation(); const novoNome = prompt("Nome:", moto.nome); if (novoNome && novoNome.trim()) { moto.nome = novoNome.trim(); salvarDados(); renderizarMotoqueiros(); renderizarPedidosConcluidos(); } };
+            
             container.appendChild(card);
         });
         setupDragAndDrop();
@@ -1131,10 +1328,14 @@
     }
 
     function enviarWhatsApp() { window.open(`https://wa.me/?text=${encodeURIComponent(gerarRelatorioWhatsApp())}`, '_blank'); }
-    function atualizarQtdeMotos() { let nova = parseInt(document.getElementById('qtdeMotosAtivos').value); if (isNaN(nova)) nova = 5; nova = Math.min(15, Math.max(1, nova)); while (motoqueiros.length < nova) motoqueiros.push({ id: motoqueiros.length + 1, nome: `Motoqueiro ${motoqueiros.length + 1}`, ativo: true, entregas: 0, valorTotal: 0, valoresPorPagamento: { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 }, acertos: { retiradaCaixa:0, pixMoto:0, bebidas:{suco:0,lata:0,litro:0,valor:0} } }); motoqueiros.forEach(m => m.ativo = m.id <= nova); salvarDados(); atualizarInterfaceCompleta(); }
+    function atualizarQtdeMotos() { let nova = parseInt(document.getElementById('qtdeMotosAtivos').value); if (isNaN(nova)) nova = 5; nova = Math.min(15, Math.max(1, nova)); while (motoqueiros.length < nova) motoqueiros.push({ id: motoqueiros.length + 1, nome: `Motoqueiro ${motoqueiros.length + 1}`, ativo: true, entregas: 0, valorTotal: 0, valoresPorPagamento: { dinheiro:0, pix:0, cartao:0, pix_moto:0, online:0 }, acertos: { retiradaCaixa:0, pixMoto:0, bebidas:{suco:0,lata:0,litro:0,valor:0} } }); motoqueiros.forEach(m => m.ativo = m.id <= nova); 
+        // Resetar ordem se necessário
+        if (config.ordemMotos) {
+            config.ordemMotos = motoqueiros.filter(m => m.ativo).map(m => m.id);
+        }
+        salvarDados(); atualizarInterfaceCompleta(); }
     function atualizarInterfaceCompleta() { recalcularTotais(); renderizarPedidosPendentes(); renderizarPedidosConcluidos(); renderizarPedidosCancelados(); renderizarMotoqueiros(); renderizarDespesas(); renderizarConferenciaCartao(); document.getElementById('caixaInicial').value = formatarMoeda(config.caixaInicial); conferirCaixa(); }
     
-    // Função apagar tudo com senha
     function apagarTudo() {
         let senha = prompt("🔒 Para apagar TODOS os dados, digite a senha:");
         if (senha !== "Programador942853") {
@@ -1145,7 +1346,7 @@
         
         motoqueiros = [];
         todosPedidos = [];
-        config = { caixaInicial: 0, despesas: [], confirmacoesCartao: {} };
+        config = { caixaInicial: 0, despesas: [], confirmacoesCartao: {}, ordemMotos: [] };
         for (let i = 1; i <= 5; i++) {
             motoqueiros.push({
                 id: i, nome: `Motoqueiro ${i}`, ativo: true, entregas: 0, valorTotal: 0,
@@ -1177,6 +1378,9 @@
         document.getElementById('btnSalvarAcertos').onclick = salvarAcertos;
         document.getElementById('btnSalvarEdicaoMoto').onclick = salvarEdicaoMoto;
         document.getElementById('btnBuscarPedido').onclick = buscarPedido;
+        document.getElementById('btnOrdenarNome').onclick = ordenarPorNome;
+        document.getElementById('btnOrdenarEntregas').onclick = ordenarPorEntregas;
+        document.getElementById('btnResetarOrdem').onclick = resetarOrdem;
         document.getElementById('buscaNumero').addEventListener('keypress', (e) => { if (e.key === 'Enter') buscarPedido(); });
         document.getElementById('pedidoNumero').addEventListener('keypress', e => { if(e.key === 'Enter') registrarPedido(); });
         document.querySelectorAll('.numero-only').forEach(inp => { inp.oninput = function() { this.value = this.value.replace(/\D/g, ''); }; inp.onfocus = function() { this.select(); }; });
